@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Browser Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .result {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-left: 4px solid #4CAF50;
+    }
+    .error {
+      border-left-color: #f44336;
+      background: #ffebee;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simple Browser Test</h1>
+  <div id="output"></div>
+
+  <script src="../dist/ppmpredictor.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    
+    function log(message, isError = false) {
+      const div = document.createElement('div');
+      div.className = isError ? 'result error' : 'result';
+      div.textContent = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+
+    try {
+      log('1. Testing library load...');
+      
+      if (typeof PPMPredictor === 'undefined') {
+        throw new Error('PPMPredictor not defined');
+      }
+      log('✅ Library loaded: ' + typeof PPMPredictor);
+
+      log('\n2. Testing createPredictor...');
+      const predictor = PPMPredictor.createPredictor();
+      log('✅ Predictor created: ' + typeof predictor);
+      
+      log('\n3. Testing train...');
+      predictor.train('hello world');
+      log('✅ Training complete');
+      
+      log('\n4. Testing predictNextCharacter...');
+      predictor.resetContext();
+      predictor.addToContext('hel');
+      const charPreds = predictor.predictNextCharacter();
+      log('✅ Character predictions: ' + JSON.stringify(charPreds.slice(0, 3)));
+      
+      log('\n5. Testing word completion...');
+      const wordPredictor = PPMPredictor.createPredictor({
+        lexicon: ['hello', 'help', 'world']
+      });
+      const wordPreds = wordPredictor.predictWordCompletion('hel');
+      log('✅ Word predictions: ' + JSON.stringify(wordPreds));
+
+      log('\n6. Testing error-tolerant mode...');
+      const tolerantPredictor = PPMPredictor.createErrorTolerantPredictor({
+        lexicon: ['hello', 'world'],
+        maxEditDistance: 2
+      });
+      const typoFix = tolerantPredictor.predictWordCompletion('helo');
+      log('✅ Typo correction: ' + JSON.stringify(typoFix));
+      
+      log('\n✅ ALL TESTS PASSED!');
+      
+    } catch (error) {
+      log('❌ ERROR: ' + error.message, true);
+      log('Stack: ' + error.stack, true);
+    }
+  </script>
+</body>
+</html>
+

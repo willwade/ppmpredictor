@@ -1,0 +1,22 @@
+
+    The quick brown fox jumps over the lazy dog.
+    This is a sample text for training the PPM model.
+    It contains common words and phrases that might be used in AAC systems.
+    Hello, how are you today?
+    I am fine, thank you.
+    The weather is nice today.
+    I would like to go for a walk.
+    Please help me with this task.
+    I need to send an email.
+    Can you pass me the water?
+    I am hungry and would like to eat something.
+    I enjoy reading books and watching movies.
+    What time is it?
+    I need to go to the bathroom.
+    Could you please help me?
+    I'm feeling tired today.
+    I want to talk to my friend.
+    Can you call my doctor?
+    I need to take my medication.
+    I would like to listen to music.
+    

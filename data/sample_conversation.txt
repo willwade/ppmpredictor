@@ -1,0 +1,20 @@
+System: Hello! How can I help you today?
+AAC User: I would like to order a pizza please
+System: Sure, what kind of pizza would you like?
+AAC User: I want a pepperoni pizza with extra cheese
+System: Great choice! What size would you like?
+AAC User: Medium size is good for me
+System: Would you like any drinks with that?
+AAC User: Yes a bottle of cola please
+System: Anything else you'd like to add to your order?
+AAC User: No that's all thank you
+System: Your total comes to $15.99. Is that okay?
+AAC User: Yes that's fine
+System: Great! Your order will be ready in about 30 minutes.
+AAC User: Thank you very much
+System: You're welcome! Enjoy your meal.
+AAC User: I will thanks for your help
+System: Is there anything else I can help you with today?
+AAC User: No that's all I needed
+System: Thank you for your order. Have a great day!
+AAC User: You too goodbye

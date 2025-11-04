@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPM Predictor - Browser Test</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-section h2 {
+      color: #4CAF50;
+      margin-top: 0;
+    }
+    .input-group {
+      margin: 15px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    .predictions {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+      min-height: 30px;
+    }
+    .prediction-item {
+      display: inline-block;
+      margin: 5px 10px 5px 0;
+      padding: 5px 12px;
+      background: #4CAF50;
+      color: white;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .prediction-item:hover {
+      background: #45a049;
+    }
+    .prediction-item .prob {
+      opacity: 0.8;
+      font-size: 0.9em;
+      margin-left: 5px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #e7f3ff;
+      padding: 15px;
+      border-left: 4px solid #2196F3;
+      margin: 20px 0;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔮 PPM Predictor - Browser Test</h1>
+
+  <div class="info">
+    <strong>ℹ️ Info:</strong> This page tests the browser build of @willwade/ppmpredictor.
+    Open the browser console (F12) to see detailed logs.
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <!-- Test 1: Character Prediction -->
+  <div class="test-section">
+    <h2>1. Character Prediction</h2>
+    <p>Type some text and see what characters are predicted next:</p>
+    <div class="input-group">
+      <label for="char-input">Your text:</label>
+      <input type="text" id="char-input" placeholder="Type something like 'The qui'...">
+    </div>
+    <div class="predictions" id="char-predictions">
+      Predictions will appear here...
+    </div>
+  </div>
+
+  <!-- Test 2: Word Completion -->
+  <div class="test-section">
+    <h2>2. Word Completion</h2>
+    <p>Type a partial word to see completions:</p>
+    <div class="input-group">
+      <label for="word-input">Partial word:</label>
+      <input type="text" id="word-input" placeholder="Try 'hel' or 'tha'...">
+    </div>
+    <div class="predictions" id="word-predictions">
+      Completions will appear here...
+    </div>
+  </div>
+
+  <!-- Test 3: Error-Tolerant Prediction -->
+  <div class="test-section">
+    <h2>3. Error-Tolerant Prediction</h2>
+    <p>Type a word with typos and see corrections:</p>
+    <div class="input-group">
+      <label for="typo-input">Word with typo:</label>
+      <input type="text" id="typo-input" placeholder="Try 'helo' or 'wrld'...">
+    </div>
+    <div class="predictions" id="typo-predictions">
+      Corrections will appear here...
+    </div>
+  </div>
+
+  <!-- Load the library -->
+  <script src="../dist/ppmpredictor.js"></script>
+
+  <script>
+    console.log('='.repeat(60));
+    console.log('PPM Predictor - Browser Test');
+    console.log('='.repeat(60));
+
+    // Check if library loaded
+    const statusDiv = document.getElementById('status');
+
+    if (typeof PPMPredictor === 'undefined') {
+      statusDiv.className = 'status error';
+      statusDiv.textContent = '❌ Error: Library failed to load!';
+      console.error('PPMPredictor is not defined');
+    } else {
+      statusDiv.className = 'status success';
+      statusDiv.textContent = '✅ Library loaded successfully!';
+      console.log('✅ PPMPredictor loaded:', PPMPredictor);
+    }
+
+    // Test 1: Character Prediction
+    console.log('\n1. Setting up character prediction...');
+    const charPredictor = PPMPredictor.createPredictor({
+      maxOrder: 5,
+      maxPredictions: 8
+    });
+
+    // Train with sample text
+    const trainingText = `
+      The quick brown fox jumps over the lazy dog.
+      Hello world! How are you today?
+      I want to help you with this task.
+      Thank you very much for your assistance.
+      Please let me know if you need anything.
+    `;
+    charPredictor.train(trainingText);
+    console.log('✅ Character predictor trained');
+
+    // Character input handler
+    document.getElementById('char-input').addEventListener('input', (e) => {
+      const text = e.target.value;
+      if (text.length === 0) {
+        document.getElementById('char-predictions').textContent = 'Predictions will appear here...';
+        return;
+      }
+
+      charPredictor.resetContext();
+      charPredictor.addToContext(text);
+      const predictions = charPredictor.predictNextCharacter();
+      
+      const predDiv = document.getElementById('char-predictions');
+      if (predictions.length === 0) {
+        predDiv.textContent = 'No predictions available';
+      } else {
+        predDiv.innerHTML = predictions.slice(0, 8).map(p => {
+          const displayChar = p.text === ' ' ? '␣' : p.text;
+          return `<span class="prediction-item">${displayChar}<span class="prob">${(p.probability * 100).toFixed(0)}%</span></span>`;
+        }).join('');
+      }
+      
+      console.log(`Predictions for "${text}":`, predictions.slice(0, 3));
+    });
+
+    // Test 2: Word Completion
+    console.log('\n2. Setting up word completion...');
+    const wordLexicon = [
+      'hello', 'help', 'helpful', 'hero', 'here',
+      'thank', 'thanks', 'that', 'the', 'there',
+      'world', 'word', 'work', 'would', 'want',
+      'please', 'place', 'play', 'plan'
+    ];
+    
+    const wordPredictor = PPMPredictor.createPredictor({
+      lexicon: wordLexicon,
+      maxPredictions: 5
+    });
+    console.log('✅ Word predictor created with', wordLexicon.length, 'words');
+
+    // Word input handler
+    document.getElementById('word-input').addEventListener('input', (e) => {
+      const partial = e.target.value.trim();
+      if (partial.length === 0) {
+        document.getElementById('word-predictions').textContent = 'Completions will appear here...';
+        return;
+      }
+
+      const completions = wordPredictor.predictWordCompletion(partial);
+      
+      const predDiv = document.getElementById('word-predictions');
+      if (completions.length === 0) {
+        predDiv.textContent = 'No completions found';
+      } else {
+        predDiv.innerHTML = completions.map(c => 
+          `<span class="prediction-item">${c.text}<span class="prob">${(c.probability * 100).toFixed(0)}%</span></span>`
+        ).join('');
+      }
+      
+      console.log(`Completions for "${partial}":`, completions);
+    });
+
+    // Test 3: Error-Tolerant Prediction
+    console.log('\n3. Setting up error-tolerant prediction...');
+    const tolerantPredictor = PPMPredictor.createErrorTolerantPredictor({
+      lexicon: wordLexicon,
+      maxEditDistance: 2,
+      minSimilarity: 0.5,
+      maxPredictions: 5
+    });
+    console.log('✅ Error-tolerant predictor created');
+
+    // Typo input handler
+    document.getElementById('typo-input').addEventListener('input', (e) => {
+      const typo = e.target.value.trim();
+      if (typo.length === 0) {
+        document.getElementById('typo-predictions').textContent = 'Corrections will appear here...';
+        return;
+      }
+
+      const corrections = tolerantPredictor.predictWordCompletion(typo);
+      
+      const predDiv = document.getElementById('typo-predictions');
+      if (corrections.length === 0) {
+        predDiv.textContent = 'No corrections found';
+      } else {
+        predDiv.innerHTML = corrections.map(c => 
+          `<span class="prediction-item">${c.text}<span class="prob">${(c.probability * 100).toFixed(0)}%</span></span>`
+        ).join('');
+      }
+      
+      console.log(`Corrections for "${typo}":`, corrections);
+    });
+
+    console.log('\n✅ All tests initialized successfully!');
+    console.log('Try typing in the input fields above.');
+    console.log('='.repeat(60));
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,61 @@
+{
+  "name": "@willwade/ppmpredictor",
+  "version": "0.0.0-development",
+  "description": "Word and letter prediction library with configurable error tolerance using PPM (Prediction by Partial Matching)",
+  "main": "src/index.js",
+  "browser": "dist/ppmpredictor.js",
+  "module": "dist/ppmpredictor.esm.js",
+  "unpkg": "dist/ppmpredictor.min.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "node test/predictor.test.js",
+    "example:basic": "node examples/basic-prediction.js",
+    "example:error-tolerant": "node examples/error-tolerant.js",
+    "example:word-completion": "node examples/word-completion.js",
+    "example:train-file": "node examples/train-from-file.js",
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "prediction",
+    "autocomplete",
+    "word-prediction",
+    "letter-prediction",
+    "ppm",
+    "language-model",
+    "error-tolerant",
+    "fuzzy-matching",
+    "aac",
+    "assistive-technology",
+    "noisy-channel"
+  ],
+  "author": "Will Wade <willwade@gmail.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/willwade/ppmpredictor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/willwade/ppmpredictor/issues"
+  },
+  "homepage": "https://github.com/willwade/ppmpredictor#readme",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "files": [
+    "src/",
+    "dist/",
+    "data/",
+    "examples/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.52.5"
+  }
+}
