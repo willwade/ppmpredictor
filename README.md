@@ -25,12 +25,10 @@ npm install @willwade/ppmpredictor
 ### Platform Support
 
 - **Node.js**: ✅ Fully supported (v12+)
-- **Browser**: ✅ Fully supported (direct usage or bundled)
+- **Browser**: Fully supported (direct usage or bundled)
   - Direct: `<script src="dist/ppmpredictor.min.js"></script>`
   - CDN: `<script src="https://unpkg.com/@willwade/ppmpredictor"></script>`
   - Bundled: Works with Webpack, Rollup, etc.
-
-See [BROWSER_SUPPORT.md](BROWSER_SUPPORT.md) for complete details and examples.
 
 ## Quick Start
 
