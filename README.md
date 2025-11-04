@@ -455,6 +455,7 @@ Contributions welcome! Please open an issue or PR on GitHub.
 
 ## Related Projects
 
+- [Google JSLM](https://github.com/google-research/google-research/tree/master/jslm) - Original JS LM code by Google team
 - [pylm](https://github.com/willwade/pylm) - Python PPM implementation
 - [Dasher](http://www.inference.org.uk/dasher/) - Original AAC application using PPM
 
