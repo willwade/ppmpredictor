@@ -42,9 +42,9 @@
  * Please also consult the references in README.md file in this directory.
  */
 
-const assert = require("assert");
+import assert from 'assert';
 
-const vocab = require("./vocabulary");
+import * as vocab from './vocabulary.js';
 
 /**
  * Kneser-Ney "-like" smoothing parameters.
@@ -173,7 +173,7 @@ class PPMLanguageModel {
   constructor(vocab, maxOrder) {
     this.vocab_ = vocab;
     assert(this.vocab_.size() > 1,
-           "Expecting at least two symbols in the vocabulary");
+      'Expecting at least two symbols in the vocabulary');
 
     this.maxOrder_ = maxOrder;
     this.root_ = new Node();
@@ -213,7 +213,7 @@ class PPMLanguageModel {
         // Shortest possible context.
         symbolNode.backoff_ = this.root_;
       } else {
-        assert(node.backoff_ != null, "Expected valid backoff node");
+        assert(node.backoff_ != null, 'Expected valid backoff node');
         symbolNode.backoff_ = this.addSymbolToNode_(node.backoff_, symbol);
       }
     }
@@ -246,10 +246,10 @@ class PPMLanguageModel {
    * @final
    */
   addSymbolToContext(context, symbol) {
-    if (symbol <= vocab.rootSymbol) {  // Only add valid symbols.
+    if (symbol <= vocab.rootSymbol) { // Only add valid symbols.
       return;
     }
-    assert(symbol < this.vocab_.size(), "Invalid symbol: " + symbol);
+    assert(symbol < this.vocab_.size(), 'Invalid symbol: ' + symbol);
     while (context.head_ != null) {
       if (context.order_ < this.maxOrder_) {
         // Extend the current context.
@@ -277,10 +277,10 @@ class PPMLanguageModel {
    * @final
    */
   addSymbolAndUpdate(context, symbol) {
-    if (symbol <= vocab.rootSymbol) {  // Only add valid symbols.
+    if (symbol <= vocab.rootSymbol) { // Only add valid symbols.
       return;
     }
-    assert(symbol < this.vocab_.size(), "Invalid symbol: " + symbol);
+    assert(symbol < this.vocab_.size(), 'Invalid symbol: ' + symbol);
     const symbolNode = this.addSymbolToNode_(context.head_, symbol);
     assert(symbolNode == context.head_.findChildWithSymbol(symbol));
     context.head_ = symbolNode;
@@ -418,7 +418,7 @@ class PPMLanguageModel {
       gamma = totalMass;
     }
     assert(totalMass >= 0.0,
-           "Invalid remaining probability mass: " + totalMass);
+      'Invalid remaining probability mass: ' + totalMass);
 
     // Count the total number of symbols that should have their estimates
     // blended with the uniform distribution representing the zero context.
@@ -454,7 +454,7 @@ class PPMLanguageModel {
       newProbMass += probs[i];
       --leftSymbols;
     }
-    assert(totalMass == 0.0, "Expected remaining probability mass to be zero!");
+    assert(totalMass == 0.0, 'Expected remaining probability mass to be zero!');
     assert(Math.abs(1.0 - newProbMass) < epsilon);
     return probs;
   }
@@ -466,9 +466,9 @@ class PPMLanguageModel {
    * @final @private
    */
   printToConsole_(node, indent) {
-    console.log(indent + "  " + this.vocab_.symbols_[node.symbol_] +
-                "(" + node.symbol_ + ") [" + node.count_ + "]");
-    indent += "  ";
+    console.log(indent + '  ' + this.vocab_.symbols_[node.symbol_] +
+                '(' + node.symbol_ + ') [' + node.count_ + ']');
+    indent += '  ';
     let child = node.child_;
     while (child != null) {
       this.printToConsole_(child, indent);
@@ -481,11 +481,11 @@ class PPMLanguageModel {
    * @final
    */
   printToConsole() {
-    this.printToConsole_(this.root_, "");
+    this.printToConsole_(this.root_, '');
   }
 }
 
 /**
  * Exported APIs.
  */
-exports.PPMLanguageModel = PPMLanguageModel;
+export { PPMLanguageModel };

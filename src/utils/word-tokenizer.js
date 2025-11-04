@@ -14,7 +14,7 @@
 
 /**
  * @fileoverview Word tokenization utilities.
- * 
+ *
  * Provides functions for splitting text into words and handling
  * word boundaries for prediction.
  */
@@ -28,7 +28,7 @@ function tokenize(text) {
   if (!text || typeof text !== 'string') {
     return [];
   }
-  
+
   // Split on whitespace and punctuation, but keep the tokens
   return text.trim().split(/\s+/).filter(word => word.length > 0);
 }
@@ -42,15 +42,15 @@ function getLastPartialWord(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  
+
   const trimmed = text.trimEnd();
   const words = trimmed.split(/\s+/);
-  
+
   // If text ends with whitespace, there's no partial word
   if (text !== trimmed) {
     return '';
   }
-  
+
   return words[words.length - 1] || '';
 }
 
@@ -63,20 +63,20 @@ function getContext(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  
+
   const trimmed = text.trimEnd();
   const words = trimmed.split(/\s+/);
-  
+
   // If text ends with whitespace, all words are context
   if (text !== trimmed) {
     return trimmed;
   }
-  
+
   // Otherwise, exclude the last word
   if (words.length <= 1) {
     return '';
   }
-  
+
   return words.slice(0, -1).join(' ');
 }
 
@@ -89,7 +89,7 @@ function endsWithWordBoundary(text) {
   if (!text || typeof text !== 'string') {
     return true;
   }
-  
+
   return text !== text.trimEnd();
 }
 
@@ -103,12 +103,12 @@ function normalize(text, lowercase = true) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  
+
   let normalized = text.trim();
   if (lowercase) {
     normalized = normalized.toLowerCase();
   }
-  
+
   return normalized;
 }
 
@@ -121,7 +121,7 @@ function toCharArray(text) {
   if (!text || typeof text !== 'string') {
     return [];
   }
-  
+
   return Array.from(text);
 }
 
@@ -134,7 +134,7 @@ function fromCharArray(chars) {
   if (!Array.isArray(chars)) {
     return '';
   }
-  
+
   return chars.join('');
 }
 
@@ -148,14 +148,14 @@ function getNgrams(text, n) {
   if (!text || typeof text !== 'string' || n < 1) {
     return [];
   }
-  
+
   const chars = toCharArray(text);
   const ngrams = [];
-  
+
   for (let i = 0; i <= chars.length - n; i++) {
     ngrams.push(chars.slice(i, i + n).join(''));
   }
-  
+
   return ngrams;
 }
 
@@ -168,7 +168,7 @@ function removePunctuation(text) {
   if (!text || typeof text !== 'string') {
     return '';
   }
-  
+
   return text.replace(/[^\w\s]/g, '');
 }
 
@@ -181,7 +181,7 @@ function isAlphanumeric(char) {
   if (!char || typeof char !== 'string' || char.length !== 1) {
     return false;
   }
-  
+
   return /^[a-zA-Z0-9]$/.test(char);
 }
 
@@ -194,22 +194,38 @@ function isWhitespace(char) {
   if (!char || typeof char !== 'string' || char.length !== 1) {
     return false;
   }
-  
+
   return /^\s$/.test(char);
 }
 
 /**
  * Exported APIs.
  */
-exports.tokenize = tokenize;
-exports.getLastPartialWord = getLastPartialWord;
-exports.getContext = getContext;
-exports.endsWithWordBoundary = endsWithWordBoundary;
-exports.normalize = normalize;
-exports.toCharArray = toCharArray;
-exports.fromCharArray = fromCharArray;
-exports.getNgrams = getNgrams;
-exports.removePunctuation = removePunctuation;
-exports.isAlphanumeric = isAlphanumeric;
-exports.isWhitespace = isWhitespace;
+export {
+  tokenize,
+  getLastPartialWord,
+  getContext,
+  endsWithWordBoundary,
+  normalize,
+  toCharArray,
+  fromCharArray,
+  getNgrams,
+  removePunctuation,
+  isAlphanumeric,
+  isWhitespace
+};
+
+export default {
+  tokenize,
+  getLastPartialWord,
+  getContext,
+  endsWithWordBoundary,
+  normalize,
+  toCharArray,
+  fromCharArray,
+  getNgrams,
+  removePunctuation,
+  isAlphanumeric,
+  isWhitespace
+};
 

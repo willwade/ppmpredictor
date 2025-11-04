@@ -22,10 +22,10 @@
 const rootSymbol = 0;
 
 // Symbol name of the root symbol, also used for out-of-vocabulary symbols.
-const rootSymbolName = "<R>";
+const rootSymbolName = '<R>';
 
 // The special out-of-vocabulary (OOV) symbol.
-const oovSymbol = "<OOV>";
+const oovSymbol = '<OOV>';
 
 /**
  * Vocabulary of symbols, which is a set of symbols that map one-to-one to
@@ -88,5 +88,4 @@ class Vocabulary {
 /**
  * Exported APIs.
  */
-exports.rootSymbol = rootSymbol;
-exports.Vocabulary = Vocabulary;
+export { rootSymbol, Vocabulary };

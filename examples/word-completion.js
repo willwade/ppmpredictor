@@ -14,11 +14,11 @@
 
 /**
  * @fileoverview Word completion example.
- * 
+ *
  * Demonstrates word completion and prediction with lexicon.
  */
 
-const { createPredictor } = require('../src/index');
+import { createPredictor } from '../src/index.js';
 
 console.log('='.repeat(60));
 console.log('Word Completion Example');
@@ -30,22 +30,22 @@ const lexicon = [
   // Common words
   'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it',
   'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this',
-  
+
   // AAC-relevant words
   'hello', 'help', 'yes', 'no', 'please', 'thank', 'thanks', 'sorry',
   'want', 'need', 'like', 'love', 'good', 'bad', 'happy', 'sad',
   'hungry', 'thirsty', 'tired', 'pain', 'hurt', 'sick',
-  
+
   // Action words
   'go', 'come', 'eat', 'drink', 'sleep', 'wake', 'sit', 'stand',
   'walk', 'run', 'talk', 'listen', 'look', 'see', 'hear', 'feel',
-  
+
   // Question words
   'what', 'when', 'where', 'who', 'why', 'how',
-  
+
   // Time words
   'now', 'later', 'today', 'tomorrow', 'yesterday', 'morning', 'afternoon', 'evening', 'night',
-  
+
   // Family
   'mom', 'dad', 'mother', 'father', 'sister', 'brother', 'family', 'friend'
 ];
@@ -68,7 +68,7 @@ const partialWords = ['hel', 'tha', 'mor', 'wa'];
 partialWords.forEach(partial => {
   console.log(`Completing "${partial}":`);
   const predictions = predictor.predictWordCompletion(partial);
-  
+
   if (predictions.length === 0) {
     console.log('  (No completions found)');
   } else {
@@ -109,7 +109,7 @@ const testPartials = ['i ', 'tha', 'hel', 'goo'];
 testPartials.forEach(partial => {
   console.log(`Completing "${partial}":`);
   const predictions = trainedPredictor.predictWordCompletion(partial);
-  
+
   predictions.slice(0, 3).forEach((pred, idx) => {
     console.log(`  ${idx + 1}. ${pred.text} (prob: ${pred.probability.toFixed(4)})`);
   });
@@ -151,7 +151,7 @@ const contextTests = [
 contextTests.forEach(test => {
   console.log(`Context: "${test.context}" + Partial: "${test.partial}"`);
   const predictions = contextAwarePredictor.predictWordCompletion(test.partial, test.context);
-  
+
   predictions.slice(0, 3).forEach((pred, idx) => {
     console.log(`  ${idx + 1}. ${pred.text}`);
   });
@@ -169,7 +169,7 @@ console.log();
 for (let i = 1; i <= word.length; i++) {
   const partial = word.substring(0, i);
   const predictions = predictor.predictWordCompletion(partial);
-  
+
   console.log(`"${partial}" →`, predictions.slice(0, 3).map(p => p.text).join(', '));
 }
 console.log();
@@ -252,7 +252,7 @@ const edgeCases = [
 edgeCases.forEach(testCase => {
   console.log(`${testCase.description}: "${testCase.input}"`);
   const predictions = predictor.predictWordCompletion(testCase.input);
-  
+
   if (predictions.length === 0) {
     console.log('  (No predictions)');
   } else {

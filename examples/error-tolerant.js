@@ -14,11 +14,11 @@
 
 /**
  * @fileoverview Error-tolerant prediction example.
- * 
+ *
  * Demonstrates error-tolerant prediction with fuzzy matching for noisy input.
  */
 
-const { createStrictPredictor, createErrorTolerantPredictor, levenshteinDistance } = require('../src/index');
+import { createStrictPredictor, createErrorTolerantPredictor, levenshteinDistance } from '../src/index.js';
 
 console.log('='.repeat(60));
 console.log('Error-Tolerant Prediction Example');
@@ -93,13 +93,13 @@ const testCases = [
 testCases.forEach((testCase, idx) => {
   console.log(`Test ${idx + 1}: ${testCase.error}`);
   console.log(`  Input: "${testCase.input}" (expected: "${testCase.expected}")`);
-  
+
   const predictions = tolerantPredictor.predictWordCompletion(testCase.input);
   if (predictions.length > 0) {
     const topMatch = predictions[0];
     const distance = levenshteinDistance(testCase.input, topMatch.text);
     console.log(`  Top match: "${topMatch.text}" (distance: ${distance})`);
-    
+
     if (topMatch.text === testCase.expected) {
       console.log('  ✓ Correct!');
     } else {
@@ -135,7 +135,7 @@ console.log();
 keyboardErrors.forEach((test, idx) => {
   console.log(`Test ${idx + 1}: "${test.input}"`);
   console.log(`  Note: ${test.note}`);
-  
+
   const predictions = keyboardAwarePredictor.predictWordCompletion(test.input);
   console.log('  Predictions:');
   predictions.slice(0, 3).forEach((pred, i) => {
@@ -166,9 +166,9 @@ toleranceLevels.forEach(level => {
     maxEditDistance: level.maxEditDistance,
     minSimilarity: level.minSimilarity
   });
-  
+
   const predictions = predictor.predictWordCompletion(input);
-  
+
   console.log(`${level.label} (maxDistance: ${level.maxEditDistance}, minSimilarity: ${level.minSimilarity}):`);
   if (predictions.length === 0) {
     console.log('  (No matches)');

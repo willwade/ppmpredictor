@@ -7,7 +7,7 @@ import terser from '@rollup/plugin-terser';
 const assertPolyfill = {
   name: 'assert-polyfill',
   resolveId(id) {
-    if (id === 'assert') return id;
+    if (id === 'assert') {return id;}
     return null;
   },
   load(id) {

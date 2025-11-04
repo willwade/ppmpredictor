@@ -14,7 +14,7 @@
 
 /**
  * @fileoverview Fuzzy matching utilities for error-tolerant prediction.
- * 
+ *
  * Provides functions for calculating string similarity and filtering
  * predictions based on edit distance and other similarity metrics.
  */
@@ -28,10 +28,10 @@
 function levenshteinDistance(str1, str2) {
   const len1 = str1.length;
   const len2 = str2.length;
-  
+
   // Create a 2D array for dynamic programming
   const dp = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
-  
+
   // Initialize base cases
   for (let i = 0; i <= len1; i++) {
     dp[i][0] = i;
@@ -39,7 +39,7 @@ function levenshteinDistance(str1, str2) {
   for (let j = 0; j <= len2; j++) {
     dp[0][j] = j;
   }
-  
+
   // Fill the dp table
   for (let i = 1; i <= len1; i++) {
     for (let j = 1; j <= len2; j++) {
@@ -47,14 +47,14 @@ function levenshteinDistance(str1, str2) {
         dp[i][j] = dp[i - 1][j - 1];
       } else {
         dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,      // deletion
-          dp[i][j - 1] + 1,      // insertion
-          dp[i - 1][j - 1] + 1   // substitution
+          dp[i - 1][j] + 1, // deletion
+          dp[i][j - 1] + 1, // insertion
+          dp[i - 1][j - 1] + 1 // substitution
         );
       }
     }
   }
-  
+
   return dp[len1][len2];
 }
 
@@ -66,8 +66,8 @@ function levenshteinDistance(str1, str2) {
  */
 function similarityScore(str1, str2) {
   const maxLen = Math.max(str1.length, str2.length);
-  if (maxLen === 0) return 1.0;
-  
+  if (maxLen === 0) {return 1.0;}
+
   const distance = levenshteinDistance(str1, str2);
   return 1.0 - (distance / maxLen);
 }
@@ -93,16 +93,16 @@ function startsWith(str, prefix, caseSensitive = true) {
  * @param {Array<string>} candidates Array of candidate strings.
  * @param {number} maxDistance Maximum edit distance to include.
  * @param {number} minSimilarity Minimum similarity score (0-1) to include.
- * @return {Array<{text: string, distance: number, similarity: number}>} 
+ * @return {Array<{text: string, distance: number, similarity: number}>}
  *         Sorted array of matches with scores.
  */
 function fuzzyMatch(target, candidates, maxDistance = 2, minSimilarity = 0.5) {
   const matches = [];
-  
+
   for (const candidate of candidates) {
     const distance = levenshteinDistance(target, candidate);
     const similarity = similarityScore(target, candidate);
-    
+
     if (distance <= maxDistance && similarity >= minSimilarity) {
       matches.push({
         text: candidate,
@@ -111,7 +111,7 @@ function fuzzyMatch(target, candidates, maxDistance = 2, minSimilarity = 0.5) {
       });
     }
   }
-  
+
   // Sort by similarity (descending) then by distance (ascending)
   matches.sort((a, b) => {
     if (Math.abs(a.similarity - b.similarity) > 0.001) {
@@ -119,7 +119,7 @@ function fuzzyMatch(target, candidates, maxDistance = 2, minSimilarity = 0.5) {
     }
     return a.distance - b.distance;
   });
-  
+
   return matches;
 }
 
@@ -169,7 +169,7 @@ function areKeysAdjacent(char1, char2) {
   const adjacency = getQwertyAdjacency();
   const c1 = char1.toLowerCase();
   const c2 = char2.toLowerCase();
-  
+
   return adjacency[c1] && adjacency[c1].includes(c2);
 }
 
@@ -183,16 +183,16 @@ function areKeysAdjacent(char1, char2) {
 function keyboardAwareDistance(str1, str2) {
   const len1 = str1.length;
   const len2 = str2.length;
-  
+
   const dp = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
-  
+
   for (let i = 0; i <= len1; i++) {
     dp[i][0] = i;
   }
   for (let j = 0; j <= len2; j++) {
     dp[0][j] = j;
   }
-  
+
   for (let i = 1; i <= len1; i++) {
     for (let j = 1; j <= len2; j++) {
       if (str1[i - 1] === str2[j - 1]) {
@@ -200,27 +200,39 @@ function keyboardAwareDistance(str1, str2) {
       } else {
         // Check if keys are adjacent for substitution cost
         const substCost = areKeysAdjacent(str1[i - 1], str2[j - 1]) ? 0.5 : 1.0;
-        
+
         dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,              // deletion
-          dp[i][j - 1] + 1,              // insertion
-          dp[i - 1][j - 1] + substCost   // substitution
+          dp[i - 1][j] + 1, // deletion
+          dp[i][j - 1] + 1, // insertion
+          dp[i - 1][j - 1] + substCost // substitution
         );
       }
     }
   }
-  
+
   return dp[len1][len2];
 }
 
 /**
  * Exported APIs.
  */
-exports.levenshteinDistance = levenshteinDistance;
-exports.similarityScore = similarityScore;
-exports.startsWith = startsWith;
-exports.fuzzyMatch = fuzzyMatch;
-exports.getQwertyAdjacency = getQwertyAdjacency;
-exports.areKeysAdjacent = areKeysAdjacent;
-exports.keyboardAwareDistance = keyboardAwareDistance;
+export {
+  levenshteinDistance,
+  similarityScore,
+  startsWith,
+  fuzzyMatch,
+  getQwertyAdjacency,
+  areKeysAdjacent,
+  keyboardAwareDistance
+};
+
+export default {
+  levenshteinDistance,
+  similarityScore,
+  startsWith,
+  fuzzyMatch,
+  getQwertyAdjacency,
+  areKeysAdjacent,
+  keyboardAwareDistance
+};
 

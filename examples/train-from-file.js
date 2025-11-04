@@ -14,13 +14,13 @@
 
 /**
  * @fileoverview Example of training predictor from text files.
- * 
+ *
  * Demonstrates how to load training data and lexicons from files.
  */
 
-const fs = require('fs');
-const path = require('path');
-const { createPredictor, createErrorTolerantPredictor } = require('../src/index');
+import fs from 'fs';
+import path from 'path';
+import { createPredictor, createErrorTolerantPredictor } from '../src/index.js';
 
 console.log('='.repeat(60));
 console.log('Training from Files Example');
@@ -36,33 +36,33 @@ const trainingFilePath = path.join(__dirname, '../data/sample_training_text.txt'
 
 if (fs.existsSync(trainingFilePath)) {
   console.log(`Loading training data from: ${trainingFilePath}`);
-  
+
   // Read the training text
   const trainingText = fs.readFileSync(trainingFilePath, 'utf-8');
   console.log(`Loaded ${trainingText.length} characters`);
   console.log(`First 100 chars: "${trainingText.substring(0, 100)}..."`);
   console.log();
-  
+
   // Create predictor and train
   const predictor = createPredictor({
     maxOrder: 5,
     maxPredictions: 5
   });
-  
+
   console.log('Training model...');
   predictor.train(trainingText);
   console.log('Training complete!');
   console.log();
-  
+
   // Test predictions
   console.log('Testing predictions:');
   const testContexts = ['I ', 'The ', 'you '];
-  
+
   testContexts.forEach(context => {
     predictor.resetContext();
     predictor.addToContext(context);
     const predictions = predictor.predictNextCharacter();
-    
+
     console.log(`  After "${context}": ${predictions.slice(0, 3).map(p => `"${p.text}"`).join(', ')}`);
   });
   console.log();
@@ -80,29 +80,29 @@ const lexiconPath = path.join(__dirname, '../data/aac_lexicon_en_gb.txt');
 
 if (fs.existsSync(lexiconPath)) {
   console.log(`Loading lexicon from: ${lexiconPath}`);
-  
+
   // Read lexicon (one word per line)
   const lexiconText = fs.readFileSync(lexiconPath, 'utf-8');
   const lexicon = lexiconText
     .split('\n')
     .map(line => line.trim())
     .filter(word => word.length > 0);
-  
+
   console.log(`Loaded ${lexicon.length} words`);
   console.log(`Sample words: ${lexicon.slice(0, 10).join(', ')}`);
   console.log();
-  
+
   // Create predictor with lexicon
   const predictor = createErrorTolerantPredictor({
     lexicon: lexicon,
     maxEditDistance: 2,
     maxPredictions: 5
   });
-  
+
   // Test word completion
   console.log('Testing word completion:');
   const testWords = ['hel', 'tha', 'ple'];
-  
+
   testWords.forEach(partial => {
     const completions = predictor.predictWordCompletion(partial);
     if (completions.length > 0) {
@@ -125,21 +125,21 @@ const conversationPath = path.join(__dirname, '../data/sample_conversation.txt')
 
 if (fs.existsSync(conversationPath) && fs.existsSync(lexiconPath)) {
   console.log('Loading both training data and lexicon...');
-  
+
   // Load training text
   const trainingText = fs.readFileSync(conversationPath, 'utf-8');
-  
+
   // Load lexicon
   const lexiconText = fs.readFileSync(lexiconPath, 'utf-8');
   const lexicon = lexiconText
     .split('\n')
     .map(line => line.trim())
     .filter(word => word.length > 0);
-  
+
   console.log(`Training text: ${trainingText.length} characters`);
   console.log(`Lexicon: ${lexicon.length} words`);
   console.log();
-  
+
   // Create predictor with both
   const predictor = createErrorTolerantPredictor({
     lexicon: lexicon,
@@ -147,22 +147,22 @@ if (fs.existsSync(conversationPath) && fs.existsSync(lexiconPath)) {
     maxPredictions: 5,
     adaptive: false
   });
-  
+
   // Train on conversation data
   console.log('Training on conversation data...');
   predictor.train(trainingText);
   console.log('Training complete!');
   console.log();
-  
+
   // Test with context-aware word completion
   console.log('Testing context-aware predictions:');
-  
+
   const testCases = [
     { context: 'I want to ', partial: 'ea' },
     { context: 'thank ', partial: 'yo' },
     { context: 'I need ', partial: 'hel' }
   ];
-  
+
   testCases.forEach(test => {
     const completions = predictor.predictWordCompletion(test.partial, test.context);
     if (completions.length > 0) {

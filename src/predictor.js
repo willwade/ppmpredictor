@@ -14,14 +14,14 @@
 
 /**
  * @fileoverview High-level prediction API wrapping PPM language model.
- * 
+ *
  * Provides word and letter prediction with configurable error tolerance.
  */
 
-const ppm = require('./ppm_language_model');
-const vocab = require('./vocabulary');
-const fuzzy = require('./utils/fuzzy-matcher');
-const tokenizer = require('./utils/word-tokenizer');
+import * as ppm from './ppm_language_model.js';
+import * as vocab from './vocabulary.js';
+import * as fuzzy from './utils/fuzzy-matcher.js';
+import * as tokenizer from './utils/word-tokenizer.js';
 
 /**
  * Configuration options for the predictor.
@@ -70,24 +70,24 @@ class Predictor {
 
     // Create vocabulary
     this.vocab = new vocab.Vocabulary();
-    
+
     // Add all printable ASCII characters to vocabulary
     for (let i = 32; i <= 126; i++) {
       this.vocab.addSymbol(String.fromCharCode(i));
     }
-    
+
     // Add common special characters
     this.vocab.addSymbol('\n');
     this.vocab.addSymbol('\t');
-    
+
     // Create PPM language model
     this.model = new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder);
-    
+
     // Create context
     this.context = this.model.createContext();
-    
+
     // Build lexicon index if provided
-    this.lexiconIndex = new Set(this.config.lexicon.map(word => 
+    this.lexiconIndex = new Set(this.config.lexicon.map(word =>
       this.config.caseSensitive ? word : word.toLowerCase()
     ));
   }
@@ -103,7 +103,7 @@ class Predictor {
 
     const chars = tokenizer.toCharArray(text);
     const context = this.model.createContext();
-    
+
     for (const char of chars) {
       const symbolId = this.vocab.addSymbol(char);
       this.model.addSymbolAndUpdate(context, symbolId);
@@ -129,13 +129,13 @@ class Predictor {
 
     const shouldUpdate = update !== null ? update : this.config.adaptive;
     const chars = tokenizer.toCharArray(text);
-    
+
     for (const char of chars) {
       let symbolId = this.vocab.symbols_.indexOf(char);
       if (symbolId < 0) {
         symbolId = this.vocab.addSymbol(char);
       }
-      
+
       if (shouldUpdate) {
         this.model.addSymbolAndUpdate(this.context, symbolId);
       } else {
@@ -151,7 +151,7 @@ class Predictor {
    */
   predictNextCharacter(context = null) {
     let workingContext = this.context;
-    
+
     if (context !== null) {
       workingContext = this.model.createContext();
       const chars = tokenizer.toCharArray(context);
@@ -166,7 +166,7 @@ class Predictor {
 
     // Get probabilities from PPM model
     const probs = this.model.getProbs(workingContext);
-    
+
     // Convert to predictions array
     const predictions = [];
     for (let i = 1; i < probs.length; i++) {
@@ -177,10 +177,10 @@ class Predictor {
         });
       }
     }
-    
+
     // Sort by probability (descending)
     predictions.sort((a, b) => b.probability - a.probability);
-    
+
     // Return top N predictions
     return predictions.slice(0, this.config.maxPredictions);
   }
@@ -197,12 +197,12 @@ class Predictor {
     }
 
     const normalized = this.config.caseSensitive ? partialWord : partialWord.toLowerCase();
-    
+
     // If we have a lexicon, use it for word completion
     if (this.lexiconIndex.size > 0) {
       return this._predictFromLexicon(normalized, precedingContext);
     }
-    
+
     // Otherwise, use character-level prediction to build word completions
     return this._predictCharacterBased(partialWord, precedingContext);
   }
@@ -216,14 +216,14 @@ class Predictor {
    */
   _predictFromLexicon(partialWord, precedingContext) {
     const candidates = [];
-    
+
     // Find all words in lexicon that start with the partial word
     for (const word of this.lexiconIndex) {
       if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
         candidates.push(word);
       }
     }
-    
+
     // In error-tolerant mode, also include fuzzy matches
     if (this.config.errorTolerant && partialWord.length >= 2) {
       const fuzzyMatches = fuzzy.fuzzyMatch(
@@ -232,14 +232,14 @@ class Predictor {
         this.config.maxEditDistance,
         this.config.minSimilarity
       );
-      
+
       for (const match of fuzzyMatches) {
         if (!candidates.includes(match.text)) {
           candidates.push(match.text);
         }
       }
     }
-    
+
     // Score candidates using PPM model
     return this._scoreCandidates(candidates, precedingContext);
   }
@@ -254,11 +254,11 @@ class Predictor {
   _predictCharacterBased(partialWord, precedingContext) {
     const predictions = [];
     const maxLength = 20; // Maximum word length to predict
-    
+
     // Create a context with the preceding text and partial word
     const fullContext = precedingContext + partialWord;
     const workingContext = this.model.createContext();
-    
+
     const chars = tokenizer.toCharArray(fullContext);
     for (const char of chars) {
       let symbolId = this.vocab.symbols_.indexOf(char);
@@ -266,7 +266,7 @@ class Predictor {
         this.model.addSymbolToContext(workingContext, symbolId);
       }
     }
-    
+
     // Generate completions by predicting next characters
     const completions = this._generateCompletions(
       workingContext,
@@ -274,14 +274,14 @@ class Predictor {
       maxLength - partialWord.length,
       5 // Generate top 5 completions
     );
-    
+
     for (const completion of completions) {
       predictions.push({
         text: completion.text,
         probability: completion.probability
       });
     }
-    
+
     return predictions;
   }
 
@@ -297,31 +297,31 @@ class Predictor {
   _generateCompletions(context, prefix, maxChars, numCompletions) {
     const completions = [];
     const spaceId = this.vocab.symbols_.indexOf(' ');
-    
+
     // Simple beam search
     let beams = [{ context: this.model.cloneContext(context), text: prefix, prob: 1.0 }];
-    
+
     for (let i = 0; i < maxChars; i++) {
       const newBeams = [];
-      
+
       for (const beam of beams) {
         const probs = this.model.getProbs(beam.context);
         const topChars = [];
-        
+
         // Get top characters
         for (let j = 1; j < probs.length; j++) {
           if (probs[j] > 0) {
             topChars.push({ id: j, prob: probs[j] });
           }
         }
-        
+
         topChars.sort((a, b) => b.prob - a.prob);
-        
+
         // Expand beam with top characters
         for (let k = 0; k < Math.min(3, topChars.length); k++) {
           const charId = topChars[k].id;
           const char = this.vocab.symbols_[charId];
-          
+
           // Stop at space or newline
           if (charId === spaceId || char === '\n') {
             if (beam.text.length > prefix.length) {
@@ -329,10 +329,10 @@ class Predictor {
             }
             continue;
           }
-          
+
           const newContext = this.model.cloneContext(beam.context);
           this.model.addSymbolToContext(newContext, charId);
-          
+
           newBeams.push({
             context: newContext,
             text: beam.text + char,
@@ -340,21 +340,21 @@ class Predictor {
           });
         }
       }
-      
-      if (newBeams.length === 0) break;
-      
+
+      if (newBeams.length === 0) {break;}
+
       // Keep top beams
       newBeams.sort((a, b) => b.prob - a.prob);
       beams = newBeams.slice(0, numCompletions);
     }
-    
+
     // Add remaining beams as completions
     for (const beam of beams) {
       if (beam.text.length > prefix.length) {
         completions.push({ text: beam.text, probability: beam.prob });
       }
     }
-    
+
     completions.sort((a, b) => b.probability - a.probability);
     return completions.slice(0, numCompletions);
   }
@@ -368,7 +368,7 @@ class Predictor {
    */
   _scoreCandidates(candidates, precedingContext) {
     const predictions = [];
-    
+
     for (const candidate of candidates) {
       const score = this._scoreWord(candidate, precedingContext);
       predictions.push({
@@ -376,7 +376,7 @@ class Predictor {
         probability: score
       });
     }
-    
+
     predictions.sort((a, b) => b.probability - a.probability);
     return predictions.slice(0, this.config.maxPredictions);
   }
@@ -391,10 +391,10 @@ class Predictor {
   _scoreWord(word, precedingContext) {
     const fullText = precedingContext + word;
     const workingContext = this.model.createContext();
-    
+
     let logProb = 0;
     const chars = tokenizer.toCharArray(fullText);
-    
+
     for (const char of chars) {
       const symbolId = this.vocab.symbols_.indexOf(char);
       if (symbolId >= 0) {
@@ -404,7 +404,7 @@ class Predictor {
         this.model.addSymbolToContext(workingContext, symbolId);
       }
     }
-    
+
     // Convert log probability to probability (normalized)
     return Math.exp(logProb / chars.length);
   }
@@ -423,10 +423,10 @@ class Predictor {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Rebuild lexicon index if lexicon changed
     if (newConfig.lexicon) {
-      this.lexiconIndex = new Set(this.config.lexicon.map(word => 
+      this.lexiconIndex = new Set(this.config.lexicon.map(word =>
         this.config.caseSensitive ? word : word.toLowerCase()
       ));
     }
@@ -436,5 +436,5 @@ class Predictor {
 /**
  * Exported APIs.
  */
-exports.Predictor = Predictor;
+export { Predictor };
 

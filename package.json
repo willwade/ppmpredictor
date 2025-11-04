@@ -10,6 +10,8 @@
   "types": "src/index.d.ts",
   "scripts": {
     "test": "node test/predictor.test.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "example:basic": "node examples/basic-prediction.js",
     "example:error-tolerant": "node examples/error-tolerant.js",
     "example:word-completion": "node examples/word-completion.js",
@@ -57,6 +59,7 @@
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "eslint": "^9.39.1",
     "rollup": "^4.52.5"
   }
 }

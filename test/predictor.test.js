@@ -16,14 +16,14 @@
  * @fileoverview Basic tests for the predictor library.
  */
 
-const assert = require('assert');
-const {
+import assert from 'assert';
+import {
   createPredictor,
   createStrictPredictor,
   createErrorTolerantPredictor,
   levenshteinDistance,
   similarityScore
-} = require('../src/index');
+} from '../src/index.js';
 
 let testsPassed = 0;
 let testsFailed = 0;
@@ -64,7 +64,7 @@ test('Predict next character', () => {
   predictor.train('hello world');
   predictor.resetContext();
   predictor.addToContext('hel');
-  
+
   const predictions = predictor.predictNextCharacter();
   assert(Array.isArray(predictions));
   assert(predictions.length > 0);
@@ -78,7 +78,7 @@ test('Word completion with lexicon', () => {
   const predictor = createPredictor({
     lexicon: ['hello', 'help', 'hero', 'world']
   });
-  
+
   const completions = predictor.predictWordCompletion('hel');
   assert(Array.isArray(completions));
   assert(completions.length > 0);
@@ -90,7 +90,7 @@ test('Strict mode - no fuzzy matching', () => {
   const predictor = createStrictPredictor({
     lexicon: ['hello', 'world']
   });
-  
+
   const completions = predictor.predictWordCompletion('helo'); // typo
   // In strict mode, should not match 'hello'
   assert(completions.length === 0 || !completions.some(c => c.text === 'hello'));
@@ -102,7 +102,7 @@ test('Error-tolerant mode - fuzzy matching', () => {
     lexicon: ['hello', 'world'],
     maxEditDistance: 2
   });
-  
+
   const completions = predictor.predictWordCompletion('helo'); // typo
   // Should match 'hello' despite typo
   assert(completions.length > 0);
@@ -115,7 +115,7 @@ test('Reset context', () => {
   predictor.train('hello world');
   predictor.addToContext('hello');
   predictor.resetContext();
-  
+
   // After reset, context should be empty
   // This should work without errors
   const predictions = predictor.predictNextCharacter();
@@ -127,12 +127,12 @@ test('Update configuration at runtime', () => {
   const predictor = createPredictor({
     errorTolerant: false
   });
-  
+
   let config = predictor.getConfig();
   assert(config.errorTolerant === false);
-  
+
   predictor.updateConfig({ errorTolerant: true });
-  
+
   config = predictor.getConfig();
   assert(config.errorTolerant === true);
 });
@@ -150,10 +150,10 @@ test('Calculate Levenshtein distance', () => {
 test('Calculate similarity score', () => {
   const score1 = similarityScore('hello', 'hello');
   assert(score1 === 1.0);
-  
+
   const score2 = similarityScore('hello', 'helo');
   assert(score2 > 0.5 && score2 < 1.0);
-  
+
   const score3 = similarityScore('hello', 'world');
   assert(score3 < 0.5);
 });
@@ -164,7 +164,7 @@ test('Case-insensitive matching', () => {
     lexicon: ['Hello', 'World'],
     caseSensitive: false
   });
-  
+
   const completions = predictor.predictWordCompletion('hel');
   assert(completions.length > 0);
 });
@@ -175,10 +175,10 @@ test('Case-sensitive matching', () => {
     lexicon: ['Hello', 'hello'],
     caseSensitive: true
   });
-  
+
   const completions1 = predictor.predictWordCompletion('Hel');
   assert(completions1.some(c => c.text === 'Hello'));
-  
+
   const completions2 = predictor.predictWordCompletion('hel');
   assert(completions2.some(c => c.text === 'hello'));
 });
@@ -189,7 +189,7 @@ test('Respect max predictions limit', () => {
     lexicon: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'],
     maxPredictions: 5
   });
-  
+
   predictor.train('abcdefghijk');
   const predictions = predictor.predictNextCharacter();
   assert(predictions.length <= 5);
@@ -200,7 +200,7 @@ test('Handle empty input gracefully', () => {
   const predictor = createPredictor({
     lexicon: ['hello', 'world']
   });
-  
+
   const completions = predictor.predictWordCompletion('');
   // Should not throw, may return empty or all words
   assert(Array.isArray(completions));
@@ -211,10 +211,10 @@ test('Adaptive mode updates model', () => {
   const predictor = createPredictor({
     adaptive: true
   });
-  
+
   predictor.resetContext();
   predictor.addToContext('test', true); // Update model
-  
+
   // Should work without errors
   const predictions = predictor.predictNextCharacter();
   assert(Array.isArray(predictions));
@@ -225,14 +225,14 @@ test('Update lexicon at runtime', () => {
   const predictor = createPredictor({
     lexicon: ['hello']
   });
-  
+
   let completions = predictor.predictWordCompletion('wor');
   assert(completions.length === 0);
-  
+
   predictor.updateConfig({
     lexicon: ['hello', 'world']
   });
-  
+
   completions = predictor.predictWordCompletion('wor');
   assert(completions.length > 0);
   assert(completions.some(c => c.text === 'world'));
@@ -243,9 +243,9 @@ test('Predictions ordered by probability', () => {
   const predictor = createPredictor();
   predictor.train('aaaaabbbbc');
   predictor.resetContext();
-  
+
   const predictions = predictor.predictNextCharacter();
-  
+
   // Check that probabilities are in descending order
   for (let i = 1; i < predictions.length; i++) {
     assert(predictions[i - 1].probability >= predictions[i].probability);
@@ -258,7 +258,7 @@ test('Handle special characters in context', () => {
   predictor.train('hello, world!');
   predictor.resetContext();
   predictor.addToContext('hello,');
-  
+
   const predictions = predictor.predictNextCharacter();
   assert(Array.isArray(predictions));
   assert(predictions.length > 0);
@@ -269,7 +269,7 @@ test('Multiple training sessions accumulate', () => {
   const predictor = createPredictor();
   predictor.train('hello');
   predictor.train('world');
-  
+
   // Both training sessions should affect the model
   predictor.resetContext();
   const predictions = predictor.predictNextCharacter();
@@ -283,7 +283,7 @@ test('Keyboard-aware error tolerance', () => {
     keyboardAware: true,
     maxEditDistance: 2
   });
-  
+
   // 'j' is adjacent to 'h' on QWERTY
   const completions = predictor.predictWordCompletion('jello');
   // Should still work

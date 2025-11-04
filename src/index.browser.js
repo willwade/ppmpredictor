@@ -14,7 +14,7 @@
 
 /**
  * @fileoverview Browser-compatible entry point for noisy-channel-predictor.
- * 
+ *
  * This version excludes Node.js-specific dependencies (like fs) and provides
  * a browser-friendly API.
  */
@@ -32,7 +32,7 @@ const Vocabulary = vocabModule.Vocabulary || vocabModule;
 
 /**
  * Create a new predictor instance.
- * 
+ *
  * @param {Object} config - Configuration options
  * @returns {Predictor} Predictor instance
  */
@@ -42,7 +42,7 @@ function createPredictor(config = {}) {
 
 /**
  * Create a predictor with strict mode (exact matching only).
- * 
+ *
  * @param {Object} config - Configuration options
  * @returns {Predictor} Predictor instance
  */
@@ -55,7 +55,7 @@ function createStrictPredictor(config = {}) {
 
 /**
  * Create a predictor with error-tolerant mode enabled.
- * 
+ *
  * @param {Object} config - Configuration options
  * @returns {Predictor} Predictor instance
  */

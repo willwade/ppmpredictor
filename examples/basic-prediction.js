@@ -14,11 +14,11 @@
 
 /**
  * @fileoverview Basic prediction example.
- * 
+ *
  * Demonstrates basic character and word prediction using the library.
  */
 
-const { createPredictor } = require('../src/index');
+import { createPredictor } from '../src/index.js';
 
 console.log('='.repeat(60));
 console.log('Basic Prediction Example');
@@ -94,7 +94,7 @@ for (let i = 0; i < incrementalText.length; i++) {
   const partial = incrementalText.substring(0, i + 1);
   predictor.resetContext();
   predictor.addToContext(partial);
-  
+
   const predictions = predictor.predictNextCharacter();
   console.log(`After "${partial}":`);
   console.log(`  Top prediction: "${predictions[0].text}" (${predictions[0].probability.toFixed(4)})`);
@@ -125,7 +125,7 @@ console.log('Typing "hello" with adaptive mode:');
 for (let i = 0; i < word.length; i++) {
   const char = word[i];
   adaptivePredictor.addToContext(char, true); // true = update model
-  
+
   const predictions = adaptivePredictor.predictNextCharacter();
   console.log(`  After "${word.substring(0, i + 1)}": next = "${predictions[0]?.text || 'N/A'}"`);
 }
