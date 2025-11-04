@@ -2,6 +2,7 @@
 
 This directory contains sample training data and lexicons for the PPM Predictor library.
 
+
 ## Files
 
 ### Training Texts
@@ -13,6 +14,9 @@ This directory contains sample training data and lexicons for the PPM Predictor 
 - **sample_conversation.txt** (882 bytes)
   - Conversational text with common phrases
   - Good for AAC (Augmentative and Alternative Communication) applications
+
+
+And more at training/ - note these are directly from dasher repo. 
 
 ### Lexicons
 
