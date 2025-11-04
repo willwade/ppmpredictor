@@ -1,4 +1,4 @@
-# Noisy Channel Predictor
+# PPM Predictor
 
 A powerful Node.js library for word and letter prediction with configurable error tolerance, built on PPM (Prediction by Partial Matching) language modeling.
 
