@@ -27,7 +27,7 @@ const assertPolyfill = {
 export default [
   // Browser-friendly UMD build (unminified)
   {
-    input: 'src/index.browser.js',
+    input: 'src/index.js',
     output: {
       name: 'PPMPredictor',
       file: 'dist/ppmpredictor.js',
@@ -44,7 +44,7 @@ export default [
 
   // Browser-friendly UMD build (minified)
   {
-    input: 'src/index.browser.js',
+    input: 'src/index.js',
     output: {
       name: 'PPMPredictor',
       file: 'dist/ppmpredictor.min.js',
@@ -62,7 +62,7 @@ export default [
 
   // ES module build (for modern bundlers)
   {
-    input: 'src/index.browser.js',
+    input: 'src/index.js',
     output: {
       file: 'dist/ppmpredictor.esm.js',
       format: 'es',
