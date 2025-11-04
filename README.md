@@ -1,13 +1,13 @@
 # PPM Predictor
 
-A powerful Node.js library for word and letter prediction with configurable error tolerance, built on PPM (Prediction by Partial Matching) language modeling.
+A  Node.js library for word and letter prediction with configurable error tolerance, built on PPM (Prediction by Partial Matching) language modeling. Original PPM JS code by Google.. 
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org)
 
 ## Features
 
-- 🎯 **Character-level prediction** using state-of-the-art PPM language model
+- 🎯 **Character-level prediction** using PPM language model
 - 📝 **Word completion** with lexicon support
 - 🔧 **Error-tolerant mode** for handling typos and noisy input
 - ⌨️ **Keyboard-aware matching** for proximity-based error correction
