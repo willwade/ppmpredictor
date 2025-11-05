@@ -5,7 +5,7 @@ A  Node.js library for word and letter prediction with configurable error tolera
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org)
 
-## Features
+## Features (aka emoji filled box that is all the rage..)
 
 - 🎯 **Character-level prediction** using PPM language model
 - 📝 **Word completion** with lexicon support
@@ -24,7 +24,7 @@ npm install @willwade/ppmpredictor
 
 ### Platform Support
 
-- **Node.js**: ✅ Fully supported (v12+)
+- **Node.js**: Fully supported (v12+)
 - **Browser**: Fully supported (direct usage or bundled)
   - Direct: `<script src="dist/ppmpredictor.min.js"></script>`
   - CDN: `<script src="https://unpkg.com/@willwade/ppmpredictor"></script>`
@@ -295,7 +295,7 @@ console.log(score); // 0.8
 
 ## Examples
 
-The library includes comprehensive examples:
+The library includes some examples:
 
 ### Run Examples
 
@@ -320,11 +320,7 @@ npm run example:word-completion
 
 ### AAC (Augmentative and Alternative Communication)
 
-Perfect for assistive technology applications where users may have:
-- Motor impairments leading to typos
-- Switch access with limited precision
-- Eye-gaze input with dwell-time errors
-- On-screen keyboard usage
+eg
 
 ```javascript
 const predictor = createErrorTolerantPredictor({
@@ -357,7 +353,7 @@ inputField.on('input', (text) => {
 
 ### Spell Correction
 
-Build a spell checker with context awareness:
+Build a spell checker with context awareness (NB: Not really great at this):
 
 ```javascript
 const corrector = createErrorTolerantPredictor({
