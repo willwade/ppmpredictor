@@ -34,6 +34,7 @@ import wordTokenizer from './utils/word-tokenizer.js';
  * @param {number} [config.maxEditDistance=2] - Maximum edit distance for fuzzy matching
  * @param {number} [config.minSimilarity=0.5] - Minimum similarity score (0-1)
  * @param {boolean} [config.keyboardAware=false] - Use keyboard-aware distance
+ * @param {Object} [config.keyboardAdjacencyMap] - Custom adjacency map for keyboard-aware distance
  * @param {boolean} [config.caseSensitive=false] - Case-sensitive matching
  * @param {number} [config.maxPredictions=10] - Maximum number of predictions
  * @param {boolean} [config.adaptive=false] - Update model as text is entered
@@ -171,4 +172,3 @@ export {
   fuzzyMatcher,
   wordTokenizer
 };
-

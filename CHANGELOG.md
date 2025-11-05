@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Regression test to lock in key character/word/fuzzy predictions and guard future performance refactors.
+- Support for custom keyboard adjacency maps (plus example) when using keyboard-aware fuzzy matching.
 
 ### Changed
 - Reworked vocabulary lookups to use an O(1) symbol map for faster training/adaptive updates.

@@ -132,6 +132,9 @@ const predictor = createPredictor({ lexicon: myLexicon });
    - Set `adaptive: true` when creating the predictor to learn from confirmed text as users type
    - Call `predictor.addToContext(confirmedText + ' ')` after the user commits input
    - Persist accepted text if you want the model to keep learning across sessions
+6. **Custom keyboard layouts**
+   - Provide `keyboardAdjacencyMap` when `keyboardAware` is enabled to match non-QWERTY layouts
+   - Use tools like `worldalphabets` (see `examples/custom-keyboard.js`) to generate adjacency maps
 
 ## File Formats
 

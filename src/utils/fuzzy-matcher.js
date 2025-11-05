@@ -129,40 +129,42 @@ function fuzzyMatch(target, candidates, maxDistance = 2, minSimilarity = 0.5) {
   return matches;
 }
 
+const qwertyAdjacency = {
+  'q': ['w', 'a', 's'],
+  'w': ['q', 'e', 'a', 's', 'd'],
+  'e': ['w', 'r', 's', 'd', 'f'],
+  'r': ['e', 't', 'd', 'f', 'g'],
+  't': ['r', 'y', 'f', 'g', 'h'],
+  'y': ['t', 'u', 'g', 'h', 'j'],
+  'u': ['y', 'i', 'h', 'j', 'k'],
+  'i': ['u', 'o', 'j', 'k', 'l'],
+  'o': ['i', 'p', 'k', 'l'],
+  'p': ['o', 'l'],
+  'a': ['q', 'w', 's', 'z', 'x'],
+  's': ['q', 'w', 'e', 'a', 'd', 'z', 'x', 'c'],
+  'd': ['w', 'e', 'r', 's', 'f', 'x', 'c', 'v'],
+  'f': ['e', 'r', 't', 'd', 'g', 'c', 'v', 'b'],
+  'g': ['r', 't', 'y', 'f', 'h', 'v', 'b', 'n'],
+  'h': ['t', 'y', 'u', 'g', 'j', 'b', 'n', 'm'],
+  'j': ['y', 'u', 'i', 'h', 'k', 'n', 'm'],
+  'k': ['u', 'i', 'o', 'j', 'l', 'm'],
+  'l': ['i', 'o', 'p', 'k'],
+  'z': ['a', 's', 'x'],
+  'x': ['a', 's', 'd', 'z', 'c'],
+  'c': ['s', 'd', 'f', 'x', 'v'],
+  'v': ['d', 'f', 'g', 'c', 'b'],
+  'b': ['f', 'g', 'h', 'v', 'n'],
+  'n': ['g', 'h', 'j', 'b', 'm'],
+  'm': ['h', 'j', 'k', 'n']
+};
+
 /**
  * Get keyboard adjacency map for QWERTY layout.
  * Used for keyboard-proximity-based error tolerance.
  * @return {Object} Map of characters to their adjacent keys.
  */
 function getQwertyAdjacency() {
-  return {
-    'q': ['w', 'a', 's'],
-    'w': ['q', 'e', 'a', 's', 'd'],
-    'e': ['w', 'r', 's', 'd', 'f'],
-    'r': ['e', 't', 'd', 'f', 'g'],
-    't': ['r', 'y', 'f', 'g', 'h'],
-    'y': ['t', 'u', 'g', 'h', 'j'],
-    'u': ['y', 'i', 'h', 'j', 'k'],
-    'i': ['u', 'o', 'j', 'k', 'l'],
-    'o': ['i', 'p', 'k', 'l'],
-    'p': ['o', 'l'],
-    'a': ['q', 'w', 's', 'z', 'x'],
-    's': ['q', 'w', 'e', 'a', 'd', 'z', 'x', 'c'],
-    'd': ['w', 'e', 'r', 's', 'f', 'x', 'c', 'v'],
-    'f': ['e', 'r', 't', 'd', 'g', 'c', 'v', 'b'],
-    'g': ['r', 't', 'y', 'f', 'h', 'v', 'b', 'n'],
-    'h': ['t', 'y', 'u', 'g', 'j', 'b', 'n', 'm'],
-    'j': ['y', 'u', 'i', 'h', 'k', 'n', 'm'],
-    'k': ['u', 'i', 'o', 'j', 'l', 'm'],
-    'l': ['i', 'o', 'p', 'k'],
-    'z': ['a', 's', 'x'],
-    'x': ['a', 's', 'd', 'z', 'c'],
-    'c': ['s', 'd', 'f', 'x', 'v'],
-    'v': ['d', 'f', 'g', 'c', 'b'],
-    'b': ['f', 'g', 'h', 'v', 'n'],
-    'n': ['g', 'h', 'j', 'b', 'm'],
-    'm': ['h', 'j', 'k', 'n']
-  };
+  return qwertyAdjacency;
 }
 
 /**
@@ -171,8 +173,7 @@ function getQwertyAdjacency() {
  * @param {string} char2 Second character.
  * @return {boolean} True if characters are adjacent.
  */
-function areKeysAdjacent(char1, char2) {
-  const adjacency = getQwertyAdjacency();
+function areKeysAdjacent(char1, char2, adjacency = qwertyAdjacency) {
   const c1 = char1.toLowerCase();
   const c2 = char2.toLowerCase();
 
@@ -186,7 +187,7 @@ function areKeysAdjacent(char1, char2) {
  * @param {string} str2 Second string.
  * @return {number} Keyboard-aware edit distance.
  */
-function keyboardAwareDistance(str1, str2) {
+function keyboardAwareDistance(str1, str2, adjacency = qwertyAdjacency) {
   const len1 = str1.length;
   const len2 = str2.length;
 
@@ -205,7 +206,7 @@ function keyboardAwareDistance(str1, str2) {
         dp[i][j] = dp[i - 1][j - 1];
       } else {
         // Check if keys are adjacent for substitution cost
-        const substCost = areKeysAdjacent(str1[i - 1], str2[j - 1]) ? 0.5 : 1.0;
+        const substCost = areKeysAdjacent(str1[i - 1], str2[j - 1], adjacency) ? 0.5 : 1.0;
 
         dp[i][j] = Math.min(
           dp[i - 1][j] + 1, // deletion

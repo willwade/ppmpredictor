@@ -64,6 +64,7 @@ class Predictor {
       maxEditDistance: config.maxEditDistance || 2,
       minSimilarity: config.minSimilarity || 0.5,
       keyboardAware: config.keyboardAware !== undefined ? config.keyboardAware : false,
+      keyboardAdjacencyMap: config.keyboardAdjacencyMap || null,
       caseSensitive: config.caseSensitive !== undefined ? config.caseSensitive : false,
       maxPredictions: config.maxPredictions || 10,
       adaptive: config.adaptive !== undefined ? config.adaptive : false,
@@ -436,7 +437,10 @@ class Predictor {
     this.config = { ...this.config, ...newConfig };
 
     // Rebuild lexicon index if lexicon changed
-    if (newConfig.lexicon || newConfig.caseSensitive !== undefined) {
+    if (newConfig.lexicon ||
+      newConfig.caseSensitive !== undefined ||
+      newConfig.keyboardAdjacencyMap ||
+      newConfig.keyboardAware !== undefined) {
       this._buildLexiconStructures();
     }
   }
@@ -448,8 +452,15 @@ class Predictor {
   _buildLexiconStructures() {
     const lexicon = Array.isArray(this.config.lexicon) ? this.config.lexicon : [];
     this.lexiconIndex = new Set();
-    this.lexiconTree = new BKTree();
     this.lexiconTrie = new PrefixTrie();
+
+    const adjacency = this._resolveAdjacencyMap();
+    this.keyboardAdjacency = adjacency;
+    const distanceFn = this.config.keyboardAware
+      ? (a, b) => fuzzy.keyboardAwareDistance(a, b, adjacency || fuzzy.getQwertyAdjacency())
+      : fuzzy.levenshteinDistance;
+
+    this.lexiconTree = new BKTree(distanceFn);
 
     for (const entry of lexicon) {
       if (typeof entry !== 'string' || entry.length === 0) {
@@ -458,11 +469,57 @@ class Predictor {
 
       const normalized = this.config.caseSensitive ? entry : entry.toLowerCase();
       if (!this.lexiconIndex.has(normalized)) {
+        this.lexiconIndex.add(normalized);
         this.lexiconTree.insert(normalized);
+        this.lexiconTrie.insert(normalized);
       }
-      this.lexiconIndex.add(normalized);
-      this.lexiconTrie.insert(normalized);
     }
+  }
+
+  /**
+   * Resolve the adjacency map to use for keyboard-aware distance.
+   * @return {?Object} adjacency map or null.
+   * @private
+   */
+  _resolveAdjacencyMap() {
+    if (!this.config.keyboardAware) {
+      return null;
+    }
+    if (this.config.keyboardAdjacencyMap) {
+      return this._normalizeAdjacencyMap(this.config.keyboardAdjacencyMap);
+    }
+    return fuzzy.getQwertyAdjacency();
+  }
+
+  /**
+   * Normalize adjacency keys to single-character lowercase entries.
+   * @param {Object} adjacencyMap Raw adjacency map.
+   * @return {Object} Normalized adjacency map.
+   * @private
+   */
+  _normalizeAdjacencyMap(adjacencyMap) {
+    const normalized = {};
+    for (const [key, neighbours] of Object.entries(adjacencyMap)) {
+      if (typeof key !== 'string' || key.length === 0) {
+        continue;
+      }
+      const base = key.charAt(0).toLowerCase();
+      if (!normalized[base]) {
+        normalized[base] = [];
+      }
+      if (Array.isArray(neighbours)) {
+        for (const neighbour of neighbours) {
+          if (typeof neighbour !== 'string' || neighbour.length === 0) {
+            continue;
+          }
+          const char = neighbour.charAt(0).toLowerCase();
+          if (!normalized[base].includes(char)) {
+            normalized[base].push(char);
+          }
+        }
+      }
+    }
+    return normalized;
   }
 }
 

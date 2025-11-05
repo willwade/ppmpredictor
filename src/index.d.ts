@@ -16,6 +16,8 @@ export interface PredictorConfig {
   minSimilarity?: number;
   /** Use keyboard-aware distance (default: false) */
   keyboardAware?: boolean;
+  /** Custom adjacency map for keyboard-aware distance */
+  keyboardAdjacencyMap?: Record<string, string[]>;
   /** Case-sensitive matching (default: false) */
   caseSensitive?: boolean;
   /** Maximum number of predictions to return (default: 10) */
@@ -158,12 +160,20 @@ export namespace fuzzyMatcher {
   /**
    * Check if two characters are adjacent on a QWERTY keyboard.
    */
-  function areKeysAdjacent(char1: string, char2: string): boolean;
+  function areKeysAdjacent(
+    char1: string,
+    char2: string,
+    adjacency?: Record<string, string[]>
+  ): boolean;
 
   /**
    * Calculate keyboard-aware edit distance.
    */
-  function keyboardAwareDistance(str1: string, str2: string): number;
+  function keyboardAwareDistance(
+    str1: string,
+    str2: string,
+    adjacency?: Record<string, string[]>
+  ): number;
 }
 
 /**

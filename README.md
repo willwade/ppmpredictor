@@ -136,10 +136,11 @@ Creates a new predictor instance with the given configuration.
 - `config` (Object, optional): Configuration options
   - `maxOrder` (number): Maximum context length for PPM (default: 5)
   - `errorTolerant` (boolean): Enable error-tolerant mode (default: false)
-  - `maxEditDistance` (number): Maximum edit distance for fuzzy matching (default: 2)
-  - `minSimilarity` (number): Minimum similarity score 0-1 (default: 0.5)
-  - `keyboardAware` (boolean): Use keyboard-aware distance (default: false)
-  - `caseSensitive` (boolean): Case-sensitive matching (default: false)
+- `maxEditDistance` (number): Maximum edit distance for fuzzy matching (default: 2)
+- `minSimilarity` (number): Minimum similarity score 0-1 (default: 0.5)
+- `keyboardAware` (boolean): Use keyboard-aware distance (default: false)
+- `keyboardAdjacencyMap` (Object): Override the default QWERTY neighbours for keyboard-aware mode
+- `caseSensitive` (boolean): Case-sensitive matching (default: false)
   - `maxPredictions` (number): Maximum predictions to return (default: 10)
   - `adaptive` (boolean): Update model as text is entered (default: false)
   - `lexicon` (Array<string>): Optional word list for word prediction (default: [])
@@ -403,7 +404,11 @@ Enable for better handling of keyboard proximity errors:
 
 ```javascript
 const predictor = createErrorTolerantPredictor({
-  keyboardAware: true  // 'h' and 'j' are adjacent, lower cost
+  keyboardAware: true,  // 'h' and 'j' are adjacent, lower cost
+  keyboardAdjacencyMap: {  // Optional: override QWERTY layout
+    a: ['b'],
+    b: ['a']
+  }
 });
 ```
 

@@ -290,6 +290,29 @@ test('Keyboard-aware error tolerance', () => {
   assert(Array.isArray(completions));
 });
 
+test('Custom keyboard adjacency map influences fuzzy matching', () => {
+  const defaultPredictor = createErrorTolerantPredictor({
+    lexicon: ['bar'],
+    keyboardAware: true,
+    maxEditDistance: 0.5
+  });
+  const defaultResult = defaultPredictor.predictWordCompletion('aar');
+  assert(!defaultResult.some(c => c.text === 'bar'));
+
+  const adjacency = {
+    a: ['b'],
+    b: ['a']
+  };
+  const customPredictor = createErrorTolerantPredictor({
+    lexicon: ['bar'],
+    keyboardAware: true,
+    keyboardAdjacencyMap: adjacency,
+    maxEditDistance: 0.5
+  });
+  const customResult = customPredictor.predictWordCompletion('aar');
+  assert(customResult.some(c => c.text === 'bar'));
+});
+
 // Regression suite to ensure predictions remain stable after performance tweaks.
 test('Regression: top-N predictions remain stable', () => {
   const predictor = createPredictor();
