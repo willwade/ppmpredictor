@@ -290,6 +290,51 @@ test('Keyboard-aware error tolerance', () => {
   assert(Array.isArray(completions));
 });
 
+// Regression suite to ensure predictions remain stable after performance tweaks.
+test('Regression: top-N predictions remain stable', () => {
+  const predictor = createPredictor();
+  predictor.train('the quick brown fox jumps over the lazy dog. the quick blue hare.');
+  predictor.resetContext();
+  predictor.addToContext('the ');
+
+  const charPreds = predictor.predictNextCharacter().slice(0, 5);
+  const expectedChars = [
+    { text: 'q', probability: 0.44819389715754004 },
+    { text: 'l', probability: 0.16699089362953626 },
+    { text: 't', probability: 0.05237716056772911 },
+    { text: 'h', probability: 0.047360509629352156 },
+    { text: ' ', probability: 0.03974712384208602 }
+  ];
+
+  const tolerance = 1e-9;
+  expectedChars.forEach((expected, index) => {
+    const actual = charPreds[index];
+    assert(actual, `Missing character prediction at index ${index}`);
+    assert.strictEqual(actual.text, expected.text, `Unexpected char at index ${index}`);
+    assert(Math.abs(actual.probability - expected.probability) < tolerance,
+      `Probability mismatch for '${expected.text}'`);
+  });
+
+  const lexicon = ['hello', 'help', 'held', 'helmet', 'helium', 'hero', 'world'];
+  const wordPredictor = createPredictor({ lexicon, errorTolerant: true });
+
+  const completions = wordPredictor.predictWordCompletion('hel');
+  const expectedWords = ['hello', 'help', 'held', 'hero', 'helmet'];
+  expectedWords.forEach((word) => {
+    const suggestion = completions.find(c => c.text === word);
+    assert(suggestion, `Missing completion for '${word}'`);
+    assert(Math.abs(suggestion.probability - 0.010309278350515483) < tolerance,
+      `Probability mismatch for word '${word}'`);
+  });
+
+  const fuzzy = wordPredictor.predictWordCompletion('hez');
+  const expectedFuzzy = ['help', 'held', 'hero'];
+  expectedFuzzy.forEach((word) => {
+    const suggestion = fuzzy.find(c => c.text === word);
+    assert(suggestion, `Missing fuzzy completion for '${word}'`);
+  });
+});
+
 console.log();
 console.log('='.repeat(60));
 console.log(`Tests Passed: ${testsPassed}`);
@@ -302,4 +347,3 @@ if (testsFailed > 0) {
   console.log('All tests passed! ✓');
   process.exit(0);
 }
-

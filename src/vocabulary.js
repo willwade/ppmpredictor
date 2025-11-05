@@ -34,8 +34,10 @@ const oovSymbol = '<OOV>';
  */
 class Vocabulary {
   constructor() {
-    this.symbols_ = Array();
+    this.symbols_ = [];
     this.symbols_.push(rootSymbolName);
+    this.symbolToId_ = new Map();
+    this.symbolToId_.set(rootSymbolName, 0);
     this.oovSymbol_ = -1;
   }
 
@@ -46,16 +48,26 @@ class Vocabulary {
    * @final
    */
   addSymbol(symbol) {
-    let pos = this.symbols_.indexOf(symbol);
-    if (pos >= 0) {
-      return pos;
+    if (this.symbolToId_.has(symbol)) {
+      return this.symbolToId_.get(symbol);
     }
     // The current symbol container length is used as a unique ID. Because
     // the symbol IDs are used to index the array directly, the symbol ID is
     // assigned before updating the array.
     const symbol_id = this.symbols_.length;
     this.symbols_.push(symbol);
+    this.symbolToId_.set(symbol, symbol_id);
     return symbol_id;
+  }
+
+  /**
+   * Returns the symbol ID if it exists, otherwise -1.
+   * @param {string} symbol Symbol to be looked up.
+   * @return {number} Symbol ID or -1 if missing.
+   * @final
+   */
+  getSymbol(symbol) {
+    return this.symbolToId_.has(symbol) ? this.symbolToId_.get(symbol) : -1;
   }
 
   /**
@@ -67,9 +79,8 @@ class Vocabulary {
    * @final
    */
   getSymbolOrOOV(symbol) {
-    let pos = this.symbols_.indexOf(symbol);
-    if (pos >= 0) {
-      return pos;
+    if (this.symbolToId_.has(symbol)) {
+      return this.symbolToId_.get(symbol);
     }
     this.oovSymbol_ = this.addSymbol(oovSymbol);
     return this.oovSymbol_;

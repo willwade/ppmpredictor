@@ -115,6 +115,7 @@ export class PPMLanguageModel {
 export class Vocabulary {
   constructor();
   addSymbol(symbol: string): number;
+  getSymbol(symbol: string): number;
   getSymbolOrOOV(symbol: string): number;
   size(): number;
   symbols_: string[];
@@ -261,4 +262,3 @@ export function levenshteinDistance(str1: string, str2: string): number;
  * @returns Similarity score (0-1)
  */
 export function similarityScore(str1: string, str2: string): number;
-

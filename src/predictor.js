@@ -22,6 +22,8 @@ import * as ppm from './ppm_language_model.js';
 import * as vocab from './vocabulary.js';
 import * as fuzzy from './utils/fuzzy-matcher.js';
 import * as tokenizer from './utils/word-tokenizer.js';
+import { BKTree } from './utils/bk-tree.js';
+import { PrefixTrie } from './utils/prefix-trie.js';
 
 /**
  * Configuration options for the predictor.
@@ -87,9 +89,7 @@ class Predictor {
     this.context = this.model.createContext();
 
     // Build lexicon index if provided
-    this.lexiconIndex = new Set(this.config.lexicon.map(word =>
-      this.config.caseSensitive ? word : word.toLowerCase()
-    ));
+    this._buildLexiconStructures();
   }
 
   /**
@@ -131,7 +131,7 @@ class Predictor {
     const chars = tokenizer.toCharArray(text);
 
     for (const char of chars) {
-      let symbolId = this.vocab.symbols_.indexOf(char);
+      let symbolId = this.vocab.getSymbol(char);
       if (symbolId < 0) {
         symbolId = this.vocab.addSymbol(char);
       }
@@ -156,7 +156,7 @@ class Predictor {
       workingContext = this.model.createContext();
       const chars = tokenizer.toCharArray(context);
       for (const char of chars) {
-        let symbolId = this.vocab.symbols_.indexOf(char);
+        let symbolId = this.vocab.getSymbol(char);
         if (symbolId < 0) {
           symbolId = this.vocab.addSymbol(char);
         }
@@ -213,29 +213,40 @@ class Predictor {
    * @param {string} precedingContext Preceding context.
    * @return {Array<Prediction>} Array of word predictions.
    * @private
-   */
+  */
   _predictFromLexicon(partialWord, precedingContext) {
     const candidates = [];
+    const seen = new Set();
 
-    // Find all words in lexicon that start with the partial word
-    for (const word of this.lexiconIndex) {
-      if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
-        candidates.push(word);
+    // Use trie for efficient prefix lookup when available
+    if (this.lexiconTrie) {
+      const prefixMatches = this.lexiconTrie.collect(partialWord, this.config.maxPredictions * 2);
+      for (const word of prefixMatches) {
+        if (!seen.has(word)) {
+          seen.add(word);
+          candidates.push(word);
+        }
+      }
+    } else {
+      for (const word of this.lexiconIndex) {
+        if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
+          if (!seen.has(word)) {
+            seen.add(word);
+            candidates.push(word);
+          }
+        }
       }
     }
 
     // In error-tolerant mode, also include fuzzy matches
-    if (this.config.errorTolerant && partialWord.length >= 2) {
-      const fuzzyMatches = fuzzy.fuzzyMatch(
-        partialWord,
-        Array.from(this.lexiconIndex),
-        this.config.maxEditDistance,
-        this.config.minSimilarity
-      );
-
-      for (const match of fuzzyMatches) {
-        if (!candidates.includes(match.text)) {
-          candidates.push(match.text);
+    if (this.config.errorTolerant && partialWord.length >= 2 && this.lexiconTree && !this.lexiconTree.isEmpty()) {
+      const matches = this.lexiconTree.search(partialWord, this.config.maxEditDistance);
+      for (const match of matches) {
+        const maxLen = Math.max(partialWord.length, match.term.length);
+        const similarity = maxLen === 0 ? 1.0 : 1.0 - (match.distance / maxLen);
+        if (similarity >= this.config.minSimilarity && !seen.has(match.term)) {
+          seen.add(match.term);
+          candidates.push(match.term);
         }
       }
     }
@@ -261,7 +272,7 @@ class Predictor {
 
     const chars = tokenizer.toCharArray(fullContext);
     for (const char of chars) {
-      let symbolId = this.vocab.symbols_.indexOf(char);
+      let symbolId = this.vocab.getSymbol(char);
       if (symbolId >= 0) {
         this.model.addSymbolToContext(workingContext, symbolId);
       }
@@ -296,7 +307,7 @@ class Predictor {
    */
   _generateCompletions(context, prefix, maxChars, numCompletions) {
     const completions = [];
-    const spaceId = this.vocab.symbols_.indexOf(' ');
+    const spaceId = this.vocab.getSymbol(' ');
 
     // Simple beam search
     let beams = [{ context: this.model.cloneContext(context), text: prefix, prob: 1.0 }];
@@ -396,7 +407,7 @@ class Predictor {
     const chars = tokenizer.toCharArray(fullText);
 
     for (const char of chars) {
-      const symbolId = this.vocab.symbols_.indexOf(char);
+      const symbolId = this.vocab.getSymbol(char);
       if (symbolId >= 0) {
         const probs = this.model.getProbs(workingContext);
         const prob = probs[symbolId] || 1e-10;
@@ -425,10 +436,32 @@ class Predictor {
     this.config = { ...this.config, ...newConfig };
 
     // Rebuild lexicon index if lexicon changed
-    if (newConfig.lexicon) {
-      this.lexiconIndex = new Set(this.config.lexicon.map(word =>
-        this.config.caseSensitive ? word : word.toLowerCase()
-      ));
+    if (newConfig.lexicon || newConfig.caseSensitive !== undefined) {
+      this._buildLexiconStructures();
+    }
+  }
+
+  /**
+   * Build auxiliary structures used for lexicon lookup.
+   * @private
+   */
+  _buildLexiconStructures() {
+    const lexicon = Array.isArray(this.config.lexicon) ? this.config.lexicon : [];
+    this.lexiconIndex = new Set();
+    this.lexiconTree = new BKTree();
+    this.lexiconTrie = new PrefixTrie();
+
+    for (const entry of lexicon) {
+      if (typeof entry !== 'string' || entry.length === 0) {
+        continue;
+      }
+
+      const normalized = this.config.caseSensitive ? entry : entry.toLowerCase();
+      if (!this.lexiconIndex.has(normalized)) {
+        this.lexiconTree.insert(normalized);
+      }
+      this.lexiconIndex.add(normalized);
+      this.lexiconTrie.insert(normalized);
     }
   }
 }
@@ -437,4 +470,3 @@ class Predictor {
  * Exported APIs.
  */
 export { Predictor };
-

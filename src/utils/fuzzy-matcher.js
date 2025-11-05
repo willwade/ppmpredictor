@@ -98,10 +98,16 @@ function startsWith(str, prefix, caseSensitive = true) {
  */
 function fuzzyMatch(target, candidates, maxDistance = 2, minSimilarity = 0.5) {
   const matches = [];
+  const targetLength = target.length;
 
   for (const candidate of candidates) {
+    if (Math.abs(candidate.length - targetLength) > maxDistance) {
+      continue;
+    }
+
     const distance = levenshteinDistance(target, candidate);
-    const similarity = similarityScore(target, candidate);
+    const maxLen = Math.max(targetLength, candidate.length);
+    const similarity = maxLen === 0 ? 1.0 : 1.0 - (distance / maxLen);
 
     if (distance <= maxDistance && similarity >= minSimilarity) {
       matches.push({
@@ -235,4 +241,3 @@ export default {
   areKeysAdjacent,
   keyboardAwareDistance
 };
-

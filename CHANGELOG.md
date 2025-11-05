@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Regression test to lock in key character/word/fuzzy predictions and guard future performance refactors.
+
+### Changed
+- Reworked vocabulary lookups to use an O(1) symbol map for faster training/adaptive updates.
+- Replaced linear lexicon fuzzy scans with a BK-tree, improving error-tolerant lookups for large vocabularies.
+- Introduced a prefix trie for deterministic, faster lexicon prefix searches.
+- Updated documentation with live adaptive training guidance and tips on persisting incremental learning.
+
+### Performance
+- Character training benchmark (50× sample conversation) improved about 9%.
+- Lexicon prefix completions on `data/comprehensive_lexicon.txt` improved about 8% (9.33 ms → 8.56 ms avg).
+- Fuzzy completions on the same lexicon improved about 12% (10.09 ms → 8.96 ms avg).
+
+### Breaking Changes
+- None.
+
 ## [1.0.0] - 2025-11-04
 
 ### Added
@@ -46,4 +65,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance considerations and optimization tips
 
 [1.0.0]: https://github.com/willwade/noisy-channel-correction/releases/tag/v1.0.0
-
