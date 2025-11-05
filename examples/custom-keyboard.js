@@ -8,13 +8,23 @@
  */
 
 import { createErrorTolerantPredictor } from '../src/index.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 let worldalphabets;
 try {
   worldalphabets = await import('worldalphabets');
-} catch {
-  console.error('This example requires the optional dependency `worldalphabets`.');
-  console.error('Install it locally with: npm install worldalphabets');
-  process.exit(1);
+} catch (err) {
+  try {
+    worldalphabets = require('worldalphabets');
+  } catch (requireErr) {
+    console.error('This example requires the optional dependency `worldalphabets`.');
+    console.error('Install it locally with: npm install worldalphabets');
+    const cause = requireErr || err;
+    if (cause) {
+      console.error(`Unable to load worldalphabets: ${cause.message}`);
+    }
+    process.exit(1);
+  }
 }
 
 const {
