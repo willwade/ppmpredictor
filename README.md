@@ -188,6 +188,40 @@ predictor.addToContext('Hello ');
 predictor.addToContext('world', true); // Update model
 ```
 
+### Live Adaptive Training
+
+Enable adaptive mode to let the model learn from confirmed user input in real time:
+
+```javascript
+const predictor = createPredictor({ adaptive: true });
+
+function onUserAccepted(text) {
+  // Include a delimiter so the model learns word boundaries.
+  predictor.addToContext(text + ' ');
+}
+```
+
+Only commit text after the user finalises it (e.g. presses space/enter or taps a suggestion) so the model does not memorise transient typos.
+
+To persist the incremental learning, store the accepted text and replay it on startup:
+
+```javascript
+const replayBuffer = loadFromStorage(); // e.g. localStorage, IndexedDB, server
+
+if (replayBuffer) {
+  predictor.train(replayBuffer);
+}
+```
+
+If you manage a custom lexicon alongside adaptive training, update both together:
+
+```javascript
+myLexicon.push('newword');
+predictor.updateConfig({ lexicon: myLexicon });
+```
+
+This gives you live self-learning without needing a full retrain cycle.
+
 #### `predictNextCharacter(context)`
 
 Get character/letter predictions.
@@ -458,4 +492,3 @@ Contributions welcome! Please open an issue or PR on GitHub.
 - [Google JSLM](https://github.com/google-research/google-research/tree/master/jslm) - Original JS LM code by Google team
 - [pylm](https://github.com/willwade/pylm) - Python PPM implementation
 - [Dasher](http://www.inference.org.uk/dasher/) - Original AAC application using PPM
-

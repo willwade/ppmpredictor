@@ -128,6 +128,10 @@ const predictor = createPredictor({ lexicon: myLexicon });
    - Use training text for character-level predictions
    - Use lexicon for word completion
    - Together they provide the best results
+5. **Adaptive updates**
+   - Set `adaptive: true` when creating the predictor to learn from confirmed text as users type
+   - Call `predictor.addToContext(confirmedText + ' ')` after the user commits input
+   - Persist accepted text if you want the model to keep learning across sessions
 
 ## File Formats
 
@@ -158,4 +162,3 @@ please
 
 These sample files are provided for demonstration purposes.
 The AAC lexicon is derived from common AAC vocabulary lists.
-
