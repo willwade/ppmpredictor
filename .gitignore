@@ -29,3 +29,8 @@ coverage/
 *.tmp
 .cache/
 
+# Demo build output (Vite)
+docs-dist/
+
+# Copied dependencies (no longer needed - Vite bundles from node_modules)
+docs/lib/

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPM Predictor - Multi-Language Text Prediction Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      color: white;
+      padding: 40px 20px;
+    }
+    header h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    header p {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    .links {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .links a {
+      display: inline-block;
+      margin: 0 10px;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      text-decoration: none;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s;
+    }
+    .links a:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+    .section {
+      background: white;
+      padding: 30px;
+      margin: 20px 0;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.8em;
+    }
+    .section p {
+      color: #666;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .input-group {
+      margin: 20px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      transition: border-color 0.3s;
+      font-family: inherit;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 5px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .toggle input[type="checkbox"] {
+      width: 50px;
+      height: 26px;
+      appearance: none;
+      background: #ccc;
+      border-radius: 13px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .toggle input[type="checkbox"]:checked {
+      background: #667eea;
+    }
+    .toggle input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: white;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+    }
+    .toggle input[type="checkbox"]:checked::before {
+      transform: translateX(24px);
+    }
+    .predictions {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      min-height: 50px;
+      border-left: 4px solid #667eea;
+    }
+    .prediction-item {
+      display: inline-block;
+      margin: 5px 8px 5px 0;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    .prediction-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .prediction-item .prob {
+      opacity: 0.8;
+      font-size: 0.85em;
+      margin-left: 6px;
+    }
+    .status {
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 8px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 2px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 2px solid #f5c6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 2px solid #bee5eb;
+    }
+    .info-box {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #2196F3;
+    }
+    .info-box strong {
+      color: #1976d2;
+    }
+    .word-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .word-tag {
+      padding: 6px 12px;
+      background: #667eea;
+      color: white;
+      border-radius: 15px;
+      font-size: 0.9em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .word-tag .remove {
+      cursor: pointer;
+      font-weight: bold;
+      opacity: 0.8;
+    }
+    .word-tag .remove:hover {
+      opacity: 1;
+    }
+    .keyboard-viz {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-family: monospace;
+      font-size: 0.9em;
+      overflow-x: auto;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .stat-card .value {
+      font-size: 1.3em;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+    .stat-card .label {
+      font-size: 0.75em;
+      opacity: 0.9;
+    }
+    footer {
+      text-align: center;
+      color: white;
+      padding: 40px 20px;
+      opacity: 0.9;
+    }
+    footer a {
+      color: white;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔮 PPM Predictor</h1>
+      <p>Multi-language text prediction with adaptive learning</p>
+    </header>
+
+    <div class="links">
+      <a href="https://github.com/willwade/ppmpredictor#readme" target="_blank">📖 Documentation</a>
+      <a href="https://github.com/willwade/ppmpredictor" target="_blank">📦 GitHub</a>
+      <a href="https://www.npmjs.com/package/@willwade/ppmpredictor" target="_blank">📦 NPM</a>
+    </div>
+
+    <!-- Introduction Section -->
+    <div class="section">
+      <h2>About PPM (Prediction by Partial Matching)</h2>
+      <div class="info-box" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left-color: #2196f3;">
+        <p style="margin: 0 0 15px 0; line-height: 1.7;">
+          <strong>Prediction by Partial Matching (PPM)</strong> is a sophisticated character-based language modeling algorithm originally developed for data compression by
+          <a href="https://ieeexplore.ieee.org/document/1096090" target="_blank" style="color: #1976d2;">Cleary and Witten (1984)</a>.
+          PPM predicts the next character in a sequence by analyzing patterns in the preceding context, using variable-length contexts to balance specificity with robustness.
+        </p>
+
+        <p style="margin: 0 0 15px 0; line-height: 1.7;">
+          PPM gained prominence in assistive technology as the prediction engine powering
+          <a href="https://www.inference.org.uk/dasher/" target="_blank" style="color: #1976d2;"><strong>Dasher</strong></a>,
+          an innovative text-entry interface developed by the Inference Group at the University of Cambridge. Dasher uses PPM's probabilistic predictions
+          to enable efficient text entry through continuous gestures, making it particularly valuable for users with motor impairments.
+        </p>
+
+        <p style="margin: 0 0 15px 0; line-height: 1.7;">
+          <strong>This implementation</strong> is based on the PPM language model from
+          <a href="https://github.com/google-research/mozolm" target="_blank" style="color: #1976d2;">Google Research's MozoLM project</a>
+          (<a href="https://github.com/google-research/mozolm/blob/main/mozolm/models/ppm_language_model.h" target="_blank" style="color: #1976d2;">ppm_language_model.h</a>),
+          which follows the PPM variant used in Dasher. This Node.js library adapts the Google Research implementation,
+          adds word-level prediction capabilities, error tolerance features, and publishes it as an
+          <a href="https://www.npmjs.com/package/@willwade/ppmpredictor" target="_blank" style="color: #1976d2;">npm package</a>
+          for easy integration into web and Node.js applications.
+        </p>
+
+        <p style="margin: 0 0 0 0; line-height: 1.7;">
+          <strong>In this demo</strong>, we integrate PPMPredictor with
+          <a href="https://github.com/AceCentre/WorldAlphabets" target="_blank" style="color: #1976d2;">WorldAlphabets</a>,
+          an npm package providing frequency lists and keyboard layouts for 100+ languages. This demonstrates PPM's ability to work
+          seamlessly across different languages and writing systems, making it ideal for multilingual assistive technology applications.
+        </p>
+      </div>
+    </div>
+
+    <div id="status" class="status info">Loading libraries...</div>
+
+    <!-- Configuration Section -->
+    <div class="section">
+      <h2>⚙️ Configuration</h2>
+      <div class="grid">
+        <div class="input-group">
+          <label for="language-select">Language:</label>
+          <select id="language-select">
+            <option value="">Loading languages...</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="keyboard-select">Keyboard Layout:</label>
+          <select id="keyboard-select">
+            <option value="linear">Linear ABC (Switch Scanning)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="grid">
+        <div class="toggle">
+          <input type="checkbox" id="fuzzy-toggle" checked>
+          <label for="fuzzy-toggle">
+            Fuzzy Matching
+            <a href="https://github.com/willwade/ppmpredictor#error-tolerant-prediction" target="_blank" style="font-size: 0.8em; color: #667eea; text-decoration: none;" title="Learn about error-tolerant mode">ⓘ</a>
+          </label>
+        </div>
+        <div class="toggle">
+          <input type="checkbox" id="keyboard-aware-toggle">
+          <label for="keyboard-aware-toggle">
+            Keyboard-Aware Typos
+            <a href="https://github.com/willwade/ppmpredictor#keyboard-aware-mode" target="_blank" style="font-size: 0.8em; color: #667eea; text-decoration: none;" title="Learn about keyboard-aware mode">ⓘ</a>
+          </label>
+        </div>
+        <div class="toggle">
+          <input type="checkbox" id="adaptive-toggle">
+          <label for="adaptive-toggle">
+            Adaptive Learning
+            <a href="https://github.com/willwade/ppmpredictor#adaptive-mode" target="_blank" style="font-size: 0.8em; color: #667eea; text-decoration: none;" title="Learn about adaptive mode">ⓘ</a>
+          </label>
+        </div>
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat-card">
+          <div class="value" id="stat-lexicon">0</div>
+          <div class="label">Lexicon Words</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-learned">0</div>
+          <div class="label">Learned Words</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-training">0</div>
+          <div class="label">Training Chars</div>
+        </div>
+      </div>
+
+      <!-- Advanced: Custom Language Data -->
+      <details style="margin-top: 20px;">
+        <summary style="cursor: pointer; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+          🔧 Advanced: Custom Language Data
+        </summary>
+        <div style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 5px;">
+          <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+            Override the lexicon and training data for the current language, or create your own custom language (e.g., Klingon, Elvish, etc.)
+          </p>
+
+          <div class="input-group">
+            <label for="custom-lexicon">Custom Lexicon (one word per line):</label>
+            <textarea id="custom-lexicon" placeholder="hello&#10;world&#10;example&#10;..." style="height: 100px; font-family: monospace; font-size: 0.9em;"></textarea>
+          </div>
+
+          <div class="input-group">
+            <label for="custom-training">Custom Training Text:</label>
+            <textarea id="custom-training" placeholder="Paste your training text here..." style="height: 100px; font-family: monospace; font-size: 0.9em;"></textarea>
+          </div>
+
+          <button id="apply-custom-data" style="background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+            Apply Custom Data
+          </button>
+          <button id="reset-custom-data" style="background: #999; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+            Reset to Default
+          </button>
+        </div>
+      </details>
+    </div>
+
+    <!-- Main Demo Section -->
+    <div class="section">
+      <h2>✍️ Text Prediction</h2>
+      <div class="input-group">
+        <label for="text-input">Type here:</label>
+        <textarea id="text-input" placeholder="Start typing in your selected language..."></textarea>
+      </div>
+      <button id="insert-example">Insert Example Text</button>
+      <button id="clear-text">Clear Text</button>
+      <div class="predictions" id="predictions">
+        Predictions will appear here as you type...
+      </div>
+    </div>
+
+    <!-- Learned Words Section -->
+    <div class="section">
+      <h2>📚 Learned Words (Adaptive Learning)</h2>
+      <p>When adaptive learning is enabled, new words you type are learned automatically.</p>
+      <div class="word-list" id="learned-words">
+        <em>No learned words yet. Enable adaptive learning and start typing!</em>
+      </div>
+      <button id="clear-learned">Clear Learned Words</button>
+    </div>
+
+    <!-- Keyboard Visualization -->
+    <div class="section">
+      <h2>⌨️ Keyboard-Aware Error Tolerance</h2>
+      <p>
+        When enabled, the predictor considers physical key proximity when matching typos.
+        For example, typing "heklo" instead of "hello" is more likely than "hezlo" because 'k' and 'l' are adjacent on a QWERTY keyboard.
+        <a href="https://github.com/willwade/ppmpredictor#keyboard-aware-mode" target="_blank" style="color: #667eea;">Learn more →</a>
+      </p>
+      <div class="keyboard-viz" id="keyboard-viz">
+        Select a keyboard layout to see the adjacency map...
+      </div>
+    </div>
+
+    <!-- Features & Tips -->
+    <div class="section">
+      <h2>💡 Features Demonstrated</h2>
+      <div class="info-box">
+        <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+          <li><strong>Multi-language Support:</strong> 24+ languages with real training data and frequency-based lexicons from <a href="https://github.com/AceCentre/WorldAlphabets" target="_blank" style="color: #667eea;">WorldAlphabets</a></li>
+          <li><strong>Adaptive Learning:</strong> The model learns new words as you type (<a href="https://github.com/willwade/ppmpredictor#adaptive-mode" target="_blank" style="color: #667eea;">docs</a>)</li>
+          <li><strong>Error Tolerance:</strong> Fuzzy matching finds words even with typos (<a href="https://github.com/willwade/ppmpredictor#error-tolerant-prediction" target="_blank" style="color: #667eea;">docs</a>)</li>
+          <li><strong>Keyboard-Aware Typos:</strong> Considers physical key proximity (<a href="https://github.com/willwade/ppmpredictor#keyboard-aware-mode" target="_blank" style="color: #667eea;">docs</a>)</li>
+          <li><strong>PPM Algorithm:</strong> Uses Prediction by Partial Matching for context-aware predictions</li>
+          <li><strong>Real-time Configuration:</strong> All settings can be changed on-the-fly (<a href="https://github.com/willwade/ppmpredictor#api-reference" target="_blank" style="color: #667eea;">API docs</a>)</li>
+        </ul>
+      </div>
+
+      <div class="info-box" style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left-color: #ffc107;">
+        <strong style="color: #856404;">💡 Try these experiments:</strong>
+        <ul style="margin: 10px 0 0 20px; line-height: 1.8; color: #856404;">
+          <li>Type with intentional typos and see how fuzzy matching corrects them</li>
+          <li>Switch languages mid-sentence to see how the predictions adapt</li>
+          <li>Enable adaptive learning and type new words to see them added to the lexicon</li>
+          <li>Compare keyboard-aware vs. standard fuzzy matching with common typos</li>
+          <li>Try the linear ABC layout to simulate switch scanning for AAC users</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      <p>Built with ❤️ using <a href="https://github.com/willwade/ppmpredictor">@willwade/ppmpredictor</a> and <a href="https://github.com/willwade/WorldAlphabets">WorldAlphabets</a></p>
+      <p>Licensed under Apache 2.0</p>
+    </footer>
+  </div>
+
+  <!-- Load demo application (Vite will bundle everything) -->
+  <script type="module" src="/demo-app.js"></script>
+</body>
+</html>
+

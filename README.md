@@ -5,6 +5,15 @@ A  Node.js library for word and letter prediction with configurable error tolera
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org)
 
+## 🎮 Live Demo
+
+**[Try the Interactive Demo](https://willwade.github.io/ppmpredictor/demo.html)** - Full-featured demo with WorldAlphabets integration
+- 24+ languages with real training data
+- Adaptive learning with word management
+- Keyboard layout selection and visualization
+- Fuzzy matching and keyboard-aware typos
+- Real-time statistics
+
 ## Features (aka emoji filled box that is all the rage..)
 
 - 🎯 **Character-level prediction** using PPM language model
@@ -15,6 +24,7 @@ A  Node.js library for word and letter prediction with configurable error tolera
 - 🎛️ **Configurable tolerance levels** for different use cases
 - 🚀 **Zero dependencies** - pure JavaScript implementation
 - ♿ **AAC-focused** - designed for assistive technology applications
+- 🌍 **Multi-language support** - works with WorldAlphabets for 100+ languages
 
 ## Installation
 

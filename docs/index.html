@@ -169,6 +169,7 @@
       <a href="https://github.com/willwade/ppmpredictor" target="_blank">📦 GitHub</a>
       <a href="https://www.npmjs.com/package/@willwade/ppmpredictor" target="_blank">📚 NPM</a>
       <a href="https://github.com/willwade/ppmpredictor#readme" target="_blank">📖 Documentation</a>
+      <a href="demo.html">🌍 Comprehensive Demo</a>
     </div>
 
     <div class="info">
@@ -224,17 +225,8 @@
     </footer>
   </div>
 
-  <!-- Load the library (try CDN first, fallback to local) -->
-  <script src="https://cdn.jsdelivr.net/npm/@willwade/ppmpredictor/dist/ppmpredictor.min.js"></script>
-  <script>
-    // Fallback to local build if CDN fails
-    if (typeof PPMPredictor === 'undefined') {
-      console.log('CDN failed, loading local build...');
-      const script = document.createElement('script');
-      script.src = 'dist/ppmpredictor.min.js';
-      document.head.appendChild(script);
-    }
-  </script>
+  <!-- Load the library from local build -->
+  <script src="dist/ppmpredictor.min.js"></script>
 
   <script>
     console.log('='.repeat(60));
