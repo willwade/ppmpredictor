@@ -306,9 +306,9 @@
       <h2>About PPM (Prediction by Partial Matching)</h2>
       <div class="info-box" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left-color: #2196f3;">
         <p style="margin: 0 0 15px 0; line-height: 1.7;">
-          <strong>Prediction by Partial Matching (PPM)</strong> is a sophisticated character-based language modeling algorithm originally developed for data compression by
+          <strong>Prediction by Partial Matching (PPM)</strong> is a  character-based language modeling algorithm originally developed for data compression by
           <a href="https://ieeexplore.ieee.org/document/1096090" target="_blank" style="color: #1976d2;">Cleary and Witten (1984)</a>.
-          PPM predicts the next character in a sequence by analyzing patterns in the preceding context, using variable-length contexts to balance specificity with robustness.
+          PPM predicts the next character in a sequence by analyzing patterns in the preceding context, using variable-length contexts to balance specificity with robustness. Unlike fancy Large Language Models it cant magically infer from untrained text - but it is remarkably efficient if the data is in its training.
         </p>
 
         <p style="margin: 0 0 15px 0; line-height: 1.7;">
@@ -320,9 +320,9 @@
 
         <p style="margin: 0 0 15px 0; line-height: 1.7;">
           <strong>This implementation</strong> is based on the PPM language model from
-          <a href="https://github.com/google-research/mozolm" target="_blank" style="color: #1976d2;">Google Research's MozoLM project</a>
-          (<a href="https://github.com/google-research/mozolm/blob/main/mozolm/models/ppm_language_model.h" target="_blank" style="color: #1976d2;">ppm_language_model.h</a>),
-          which follows the PPM variant used in Dasher. This Node.js library adapts the Google Research implementation,
+          <a href="https://github.com/google-research/google-research/tree/master/jslm" target="_blank" style="color: #1976d2;">Google Research's JSLM project</a>
+          (<a href="https://github.com/google-research/google-research/blob/master/jslm/ppm_language_model.js" target="_blank" style="color: #1976d2;">ppm_language_model.js</a>). 
+          This Node.js library adapts the Google Research implementation,
           adds word-level prediction capabilities, error tolerance features, and publishes it as an
           <a href="https://www.npmjs.com/package/@willwade/ppmpredictor" target="_blank" style="color: #1976d2;">npm package</a>
           for easy integration into web and Node.js applications.
