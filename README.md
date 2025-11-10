@@ -104,24 +104,42 @@ Train the predictor on text to learn character patterns and word sequences:
 
 ```javascript
 const { createPredictor } = require('@willwade/ppmpredictor');
+const fs = require('fs');
 
-const predictor = createPredictor();
+// Option 1: With lexicon (recommended for word completion)
+const lexicon = fs.readFileSync('lexicon.txt', 'utf-8')
+  .split('\n')
+  .filter(word => word.trim());
+
+const predictor = createPredictor({ lexicon });
 
 // Train from a string
 predictor.train('The quick brown fox jumps over the lazy dog');
 
 // Train from a file
-const fs = require('fs');
 const trainingText = fs.readFileSync('training.txt', 'utf-8');
 predictor.train(trainingText);
 
+// Option 2: Without lexicon (character-level only)
+// Word completion will fall back to character-based prediction (slower)
+const charOnlyPredictor = createPredictor();
+charOnlyPredictor.train('The quick brown fox');
+// Still works, but word completion is less efficient
+
 // Adaptive mode - learns as user types
-const adaptivePredictor = createPredictor({ adaptive: true });
+const adaptivePredictor = createPredictor({
+  adaptive: true,
+  lexicon: lexicon  // Include lexicon for best results
+});
 adaptivePredictor.addToContext('hello world');
 // Model automatically updates with new patterns
 ```
 
 > **How Training Works**: The PPM (Prediction by Partial Matching) model learns character sequences and their probabilities. It also automatically tracks **bigrams** (word pairs) for next-word prediction. The more text you train on, the better the predictions become.
+>
+> **Lexicon vs No Lexicon**:
+> - **With lexicon**: Word completion uses fast dictionary lookup (recommended)
+> - **Without lexicon**: Word completion falls back to character-level prediction (slower but still works)
 
 **Available training files** (in parent project's `data/` directory):
 - `sample_training_text.txt` - General text for training
