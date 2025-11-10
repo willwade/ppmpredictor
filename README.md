@@ -261,33 +261,49 @@ console.log(predictions);
 
 ### Keyboard-Aware Matching
 
-Use physical keyboard layout to better handle typos:
+Use physical keyboard layout to better handle typos based on key proximity:
 
 ```javascript
-const predictor = createPredictor({
-  lexicon: ['hello', 'jello', 'yellow'],
-  errorTolerant: true,
-  keyboardAware: true  // Uses QWERTY layout by default
-});
-
-// 'h' and 'j' are adjacent on QWERTY, so 'jello' scores higher
-const predictions = predictor.predictWordCompletion('helo');
-// 'jello' gets a better score than 'yellow' because 'h' and 'j' are close
-```
-
-**Custom keyboard layouts:**
-
-```javascript
-const customLayout = {
-  'a': ['q', 's', 'z'],
+// Build a QWERTY adjacency map
+const qwertyMap = {
+  'q': ['w', 'a', 's'],
+  'w': ['q', 'e', 'a', 's', 'd'],
+  'e': ['w', 'r', 's', 'd', 'f'],
+  'r': ['e', 't', 'd', 'f', 'g'],
+  't': ['r', 'y', 'f', 'g', 'h'],
+  'y': ['t', 'u', 'g', 'h', 'j'],
+  'u': ['y', 'i', 'h', 'j', 'k'],
+  'i': ['u', 'o', 'j', 'k', 'l'],
+  'o': ['i', 'p', 'k', 'l'],
+  'p': ['o', 'l'],
+  'a': ['q', 'w', 's', 'z'],
+  's': ['a', 'w', 'e', 'd', 'z', 'x'],
+  'd': ['s', 'e', 'r', 'f', 'x', 'c'],
+  'f': ['d', 'r', 't', 'g', 'c', 'v'],
+  'g': ['f', 't', 'y', 'h', 'v', 'b'],
+  'h': ['g', 'y', 'u', 'j', 'b', 'n'],
+  'j': ['h', 'u', 'i', 'k', 'n', 'm'],
+  'k': ['j', 'i', 'o', 'l', 'm'],
+  'l': ['k', 'o', 'p'],
+  'z': ['a', 's', 'x'],
+  'x': ['z', 's', 'd', 'c'],
+  'c': ['x', 'd', 'f', 'v'],
+  'v': ['c', 'f', 'g', 'b'],
   'b': ['v', 'g', 'h', 'n'],
-  // ... define adjacency for all keys
+  'n': ['b', 'h', 'j', 'm'],
+  'm': ['n', 'j', 'k']
 };
 
 const predictor = createPredictor({
+  lexicon: ['hello', 'jello', 'yellow'],
+  errorTolerant: true,
   keyboardAware: true,
-  keyboardAdjacencyMap: customLayout
+  keyboardAdjacencyMap: qwertyMap
 });
+
+// 'h' and 'j' are adjacent on QWERTY, so 'jello' scores higher
+const predictions = predictor.predictWordCompletion('jelo');
+// 'jello' gets a better score than 'yellow' because 'j' and 'h' are close
 ```
 
 **WorldAlphabets integration** (100+ keyboard layouts):
@@ -295,14 +311,43 @@ const predictor = createPredictor({
 ```javascript
 const { loadKeyboardLayout } = require('worldalphabets');
 
+// Helper function to build adjacency map from WorldAlphabets layout
+function buildAdjacencyMap(layout) {
+  const adjacencyMap = {};
+
+  layout.keys.forEach(key => {
+    const char = key.legends.base;
+    if (!char) return;
+
+    const adjacent = layout.keys
+      .filter(otherKey => {
+        if (!otherKey.legends.base || otherKey.legends.base === char) return false;
+        const rowDiff = Math.abs(key.row - otherKey.row);
+        const colDiff = Math.abs(key.col - otherKey.col);
+        // Adjacent if within 1 row and 1 column
+        return rowDiff <= 1 && colDiff <= 1;
+      })
+      .map(k => k.legends.base);
+
+    adjacencyMap[char] = adjacent;
+  });
+
+  return adjacencyMap;
+}
+
+// Load French AZERTY layout
 const layout = await loadKeyboardLayout('fr-azerty');
-const adjacencyMap = buildAdjacencyMap(layout); // Your helper function
+const adjacencyMap = buildAdjacencyMap(layout);
 
 const predictor = createPredictor({
+  lexicon: frenchWords,
+  errorTolerant: true,
   keyboardAware: true,
   keyboardAdjacencyMap: adjacencyMap
 });
 ```
+
+See the [demo app](docs/demo-app.js) for a complete WorldAlphabets integration example.
 
 ## Advanced Usage
 
