@@ -50,6 +50,8 @@ export interface CorpusOptions {
   description?: string;
   /** Whether this corpus should be active (default: true) */
   enabled?: boolean;
+  /** Optional word list specific to this corpus (e.g., French words for French corpus) */
+  lexicon?: string[];
 }
 
 /**

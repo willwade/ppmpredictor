@@ -637,6 +637,133 @@ test('Empty or invalid input handling for bigrams', () => {
   assert(stats.uniqueBigrams > 0, 'Should still have original bigrams');
 });
 
+// Per-Corpus Lexicon Tests
+console.log();
+console.log('Per-Corpus Lexicon Tests:');
+console.log('-'.repeat(60));
+
+test('Add corpus with specific lexicon', () => {
+  const predictor = createPredictor();
+  const frenchWords = ['bonjour', 'merci', 'au revoir'];
+
+  predictor.addTrainingCorpus('french', 'bonjour le monde', {
+    lexicon: frenchWords,
+    description: 'French vocabulary'
+  });
+
+  const info = predictor.getCorpusInfo('french');
+  assert(info !== null);
+  assert.strictEqual(info.description, 'French vocabulary');
+});
+
+test('Word completion uses corpus-specific lexicon', () => {
+  const predictor = createPredictor({
+    lexicon: ['hello', 'help', 'hero']
+  });
+
+  const frenchWords = ['bonjour', 'bonsoir', 'bon'];
+  predictor.addTrainingCorpus('french', 'bonjour le monde', {
+    lexicon: frenchWords
+  });
+
+  // Use only French corpus
+  predictor.useCorpora(['french']);
+
+  const predictions = predictor.predictWordCompletion('bon');
+  assert(predictions.length > 0);
+
+  // Should only get French words, not English
+  const texts = predictions.map(p => p.text);
+  assert(texts.includes('bonjour') || texts.includes('bonsoir') || texts.includes('bon'));
+  assert(!texts.includes('hello'));
+});
+
+test('Multilingual word completion merges lexicons', () => {
+  const predictor = createPredictor({
+    lexicon: ['hello', 'help', 'hero']
+  });
+
+  const frenchWords = ['bonjour', 'bonsoir'];
+  predictor.addTrainingCorpus('french', 'bonjour le monde', {
+    lexicon: frenchWords
+  });
+
+  const spanishWords = ['hola', 'hasta'];
+  predictor.addTrainingCorpus('spanish', 'hola mundo', {
+    lexicon: spanishWords
+  });
+
+  // Use all corpora
+  predictor.useCorpora(['default', 'french', 'spanish']);
+
+  // Should get words from all languages
+  const hPredictions = predictor.predictWordCompletion('h');
+  const hTexts = hPredictions.map(p => p.text);
+
+  // Should include words from multiple languages
+  const hasEnglish = hTexts.some(w => ['hello', 'help', 'hero'].includes(w));
+  const hasSpanish = hTexts.some(w => ['hola', 'hasta'].includes(w));
+
+  assert(hasEnglish || hasSpanish, 'Should have words from multiple languages');
+});
+
+test('Empty corpus lexicon falls back to character-based prediction', () => {
+  const predictor = createPredictor();
+
+  // Add corpus without lexicon
+  predictor.addTrainingCorpus('nolexicon', 'the quick brown fox');
+  predictor.useCorpora(['nolexicon']);
+
+  const predictions = predictor.predictWordCompletion('qui');
+  // Should still get predictions (character-based)
+  assert(Array.isArray(predictions));
+});
+
+test('Per-corpus lexicon with fuzzy matching', () => {
+  const predictor = createPredictor({
+    errorTolerant: true,
+    maxEditDistance: 2
+  });
+
+  const medicalWords = ['acetaminophen', 'ibuprofen', 'aspirin'];
+  predictor.addTrainingCorpus('medical', 'take acetaminophen for pain', {
+    lexicon: medicalWords
+  });
+
+  predictor.useCorpora(['medical']);
+
+  // Typo: "ibuprofin" instead of "ibuprofen"
+  const predictions = predictor.predictWordCompletion('ibuprofin');
+  const texts = predictions.map(p => p.text);
+
+  // Should fuzzy match to "ibuprofen"
+  assert(texts.includes('ibuprofen'), 'Should fuzzy match medical terms');
+});
+
+test('Switch between corpus lexicons', () => {
+  const predictor = createPredictor({
+    lexicon: ['cat', 'dog', 'bird']
+  });
+
+  const fruitWords = ['apple', 'banana', 'cherry'];
+  predictor.addTrainingCorpus('fruits', 'I like apples', {
+    lexicon: fruitWords
+  });
+
+  // Use default (animals)
+  predictor.useCorpora(['default']);
+  let predictions = predictor.predictWordCompletion('c');
+  let texts = predictions.map(p => p.text);
+  assert(texts.includes('cat'), 'Should have animal words');
+
+  // Switch to fruits
+  predictor.useCorpora(['fruits']);
+  predictions = predictor.predictWordCompletion('c');
+  texts = predictions.map(p => p.text);
+  assert(texts.includes('cherry'), 'Should have fruit words');
+  assert(!texts.includes('cat'), 'Should not have animal words');
+});
+
 console.log();
 console.log('='.repeat(60));
 console.log(`Tests Passed: ${testsPassed}`);

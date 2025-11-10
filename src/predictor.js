@@ -84,13 +84,17 @@ class Predictor {
     this.vocab.addSymbol('\t');
 
     // Multi-corpus support
-    // Store multiple training corpora with their own PPM models
+    // Store multiple training corpora with their own PPM models and lexicons
     this._corpora = {
       // Default corpus (backward compatibility)
       'default': {
         model: new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder),
         enabled: true,
-        description: 'Default training corpus'
+        description: 'Default training corpus',
+        lexicon: this.config.lexicon || [],
+        lexiconIndex: null,
+        lexiconTree: null,
+        lexiconTrie: null
       }
     };
 
@@ -113,8 +117,8 @@ class Predictor {
     // Track the last word for bigram learning
     this._lastWord = null;
 
-    // Build lexicon index if provided
-    this._buildLexiconStructures();
+    // Build lexicon structures for default corpus
+    this._buildCorpusLexicon('default');
   }
 
   /**
@@ -153,21 +157,24 @@ class Predictor {
    * Add a new training corpus with a unique key.
    * Creates a new PPM model trained on the provided text.
    *
-   * @param {string} corpusKey Unique identifier for this corpus (e.g., 'medical', 'personal')
+   * @param {string} corpusKey Unique identifier for this corpus (e.g., 'medical', 'personal', 'french')
    * @param {string} text Training text for this corpus
    * @param {Object} options Optional configuration
    * @param {string} options.description Human-readable description of the corpus
    * @param {boolean} options.enabled Whether this corpus should be active (default: true)
+   * @param {Array<string>} options.lexicon Optional word list specific to this corpus (e.g., French words for French corpus)
    *
    * @example
-   * // Add medical terminology corpus
+   * // Add medical terminology corpus with medical lexicon
    * predictor.addTrainingCorpus('medical', medicalText, {
-   *   description: 'Medical terminology and phrases'
+   *   description: 'Medical terminology and phrases',
+   *   lexicon: medicalWords
    * });
    *
-   * // Add personal vocabulary
-   * predictor.addTrainingCorpus('personal', personalText, {
-   *   description: 'User\'s personal vocabulary'
+   * // Add French corpus with French lexicon
+   * predictor.addTrainingCorpus('french', frenchText, {
+   *   description: 'French language corpus',
+   *   lexicon: frenchWords
    * });
    */
   addTrainingCorpus(corpusKey, text, options = {}) {
@@ -191,12 +198,19 @@ class Predictor {
       corpusModel.addSymbolAndUpdate(context, symbolId);
     }
 
-    // Store the corpus
+    // Store the corpus with its own lexicon
     this._corpora[corpusKey] = {
       model: corpusModel,
       enabled: options.enabled !== undefined ? options.enabled : true,
-      description: options.description || `Training corpus: ${corpusKey}`
+      description: options.description || `Training corpus: ${corpusKey}`,
+      lexicon: options.lexicon || [],
+      lexiconIndex: null,
+      lexiconTree: null,
+      lexiconTrie: null
     };
+
+    // Build lexicon structures for this corpus
+    this._buildCorpusLexicon(corpusKey);
 
     // Add to active corpora if enabled
     if (this._corpora[corpusKey].enabled && !this._activeCorpora.includes(corpusKey)) {
@@ -478,6 +492,7 @@ class Predictor {
 
   /**
    * Get word completion predictions.
+   * Merges lexicons from all active corpora for multilingual support.
    * @param {string} partialWord Partial word to complete.
    * @param {string} precedingContext Optional preceding context.
    * @return {Array<Prediction>} Array of word predictions.
@@ -489,8 +504,14 @@ class Predictor {
 
     const normalized = this.config.caseSensitive ? partialWord : partialWord.toLowerCase();
 
-    // If we have a lexicon, use it for word completion
-    if (this.lexiconIndex.size > 0) {
+    // Check if any active corpus has a lexicon
+    const hasLexicon = this._activeCorpora.some(key => {
+      const corpus = this._corpora[key];
+      return corpus && corpus.lexiconIndex && corpus.lexiconIndex.size > 0;
+    });
+
+    // If we have lexicons in active corpora, use them for word completion
+    if (hasLexicon) {
       return this._predictFromLexicon(normalized, precedingContext);
     }
 
@@ -499,7 +520,8 @@ class Predictor {
   }
 
   /**
-   * Predict word completions from lexicon.
+   * Predict word completions from lexicons of all active corpora.
+   * Merges lexicons from multiple corpora for multilingual support.
    * @param {string} partialWord Partial word (normalized).
    * @param {string} precedingContext Preceding context.
    * @return {Array<Prediction>} Array of word predictions.
@@ -509,35 +531,43 @@ class Predictor {
     const candidates = [];
     const seen = new Set();
 
-    // Use trie for efficient prefix lookup when available
-    if (this.lexiconTrie) {
-      const prefixMatches = this.lexiconTrie.collect(partialWord, this.config.maxPredictions * 2);
-      for (const word of prefixMatches) {
-        if (!seen.has(word)) {
-          seen.add(word);
-          candidates.push(word);
-        }
+    // Collect candidates from all active corpora
+    for (const corpusKey of this._activeCorpora) {
+      const corpus = this._corpora[corpusKey];
+      if (!corpus || !corpus.lexiconIndex || corpus.lexiconIndex.size === 0) {
+        continue;
       }
-    } else {
-      for (const word of this.lexiconIndex) {
-        if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
+
+      // Use trie for efficient prefix lookup when available
+      if (corpus.lexiconTrie) {
+        const prefixMatches = corpus.lexiconTrie.collect(partialWord, this.config.maxPredictions * 2);
+        for (const word of prefixMatches) {
           if (!seen.has(word)) {
             seen.add(word);
             candidates.push(word);
           }
         }
+      } else {
+        for (const word of corpus.lexiconIndex) {
+          if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
+            if (!seen.has(word)) {
+              seen.add(word);
+              candidates.push(word);
+            }
+          }
+        }
       }
-    }
 
-    // In error-tolerant mode, also include fuzzy matches
-    if (this.config.errorTolerant && partialWord.length >= 2 && this.lexiconTree && !this.lexiconTree.isEmpty()) {
-      const matches = this.lexiconTree.search(partialWord, this.config.maxEditDistance);
-      for (const match of matches) {
-        const maxLen = Math.max(partialWord.length, match.term.length);
-        const similarity = maxLen === 0 ? 1.0 : 1.0 - (match.distance / maxLen);
-        if (similarity >= this.config.minSimilarity && !seen.has(match.term)) {
-          seen.add(match.term);
-          candidates.push(match.term);
+      // In error-tolerant mode, also include fuzzy matches from this corpus
+      if (this.config.errorTolerant && partialWord.length >= 2 && corpus.lexiconTree && !corpus.lexiconTree.isEmpty()) {
+        const matches = corpus.lexiconTree.search(partialWord, this.config.maxEditDistance);
+        for (const match of matches) {
+          const maxLen = Math.max(partialWord.length, match.term.length);
+          const similarity = maxLen === 0 ? 1.0 : 1.0 - (match.distance / maxLen);
+          if (similarity >= this.config.minSimilarity && !seen.has(match.term)) {
+            seen.add(match.term);
+            candidates.push(match.term);
+          }
         }
       }
     }
@@ -932,31 +962,48 @@ class Predictor {
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
 
-    // Rebuild lexicon index if lexicon changed
+    // Rebuild lexicon structures if relevant settings changed
     if (newConfig.lexicon ||
       newConfig.caseSensitive !== undefined ||
       newConfig.keyboardAdjacencyMap ||
       newConfig.keyboardAware !== undefined) {
-      this._buildLexiconStructures();
+
+      // Update default corpus lexicon if lexicon changed
+      if (newConfig.lexicon) {
+        this._buildLexiconStructures();
+      }
+
+      // Rebuild all corpus lexicons if keyboard settings changed
+      // (affects BKTree distance function)
+      if (newConfig.keyboardAdjacencyMap || newConfig.keyboardAware !== undefined) {
+        for (const corpusKey of Object.keys(this._corpora)) {
+          this._buildCorpusLexicon(corpusKey);
+        }
+      }
     }
   }
 
   /**
-   * Build auxiliary structures used for lexicon lookup.
+   * Build auxiliary structures used for lexicon lookup for a specific corpus.
+   * @param {string} corpusKey The corpus to build lexicon structures for
    * @private
    */
-  _buildLexiconStructures() {
-    const lexicon = Array.isArray(this.config.lexicon) ? this.config.lexicon : [];
-    this.lexiconIndex = new Set();
-    this.lexiconTrie = new PrefixTrie();
+  _buildCorpusLexicon(corpusKey) {
+    const corpus = this._corpora[corpusKey];
+    if (!corpus) {
+      return;
+    }
+
+    const lexicon = Array.isArray(corpus.lexicon) ? corpus.lexicon : [];
+    corpus.lexiconIndex = new Set();
+    corpus.lexiconTrie = new PrefixTrie();
 
     const adjacency = this._resolveAdjacencyMap();
-    this.keyboardAdjacency = adjacency;
     const distanceFn = this.config.keyboardAware
       ? (a, b) => fuzzy.keyboardAwareDistance(a, b, adjacency || fuzzy.getQwertyAdjacency())
       : fuzzy.levenshteinDistance;
 
-    this.lexiconTree = new BKTree(distanceFn);
+    corpus.lexiconTree = new BKTree(distanceFn);
 
     for (const entry of lexicon) {
       if (typeof entry !== 'string' || entry.length === 0) {
@@ -964,12 +1011,28 @@ class Predictor {
       }
 
       const normalized = this.config.caseSensitive ? entry : entry.toLowerCase();
-      if (!this.lexiconIndex.has(normalized)) {
-        this.lexiconIndex.add(normalized);
-        this.lexiconTree.insert(normalized);
-        this.lexiconTrie.insert(normalized);
+      if (!corpus.lexiconIndex.has(normalized)) {
+        corpus.lexiconIndex.add(normalized);
+        corpus.lexiconTree.insert(normalized);
+        corpus.lexiconTrie.insert(normalized);
       }
     }
+  }
+
+  /**
+   * Build auxiliary structures used for lexicon lookup.
+   * For backward compatibility - rebuilds default corpus lexicon.
+   * @private
+   */
+  _buildLexiconStructures() {
+    // Update default corpus lexicon from config
+    if (this._corpora['default']) {
+      this._corpora['default'].lexicon = this.config.lexicon || [];
+      this._buildCorpusLexicon('default');
+    }
+
+    // Also update keyboard adjacency (shared across all corpora)
+    this.keyboardAdjacency = this._resolveAdjacencyMap();
   }
 
   /**

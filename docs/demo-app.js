@@ -270,8 +270,26 @@ async function selectLanguage(langCode) {
     state.baseLexicon = freqData.tokens.slice(0, 5000);
     console.log(`📖 Loaded ${state.baseLexicon.length} words for ${langCode}`);
 
-    // Create/update the predictor with new language data
-    initializePredictor();
+    // Create predictor if it doesn't exist, or add language as a corpus
+    if (!state.predictor) {
+      // First time: create predictor with this language as default
+      initializePredictor();
+    } else {
+      // Add this language as a new corpus with its own lexicon
+      // This enables multilingual support with per-corpus lexicons
+      const trainingText = await getTrainingText(langCode);
+      if (trainingText) {
+        state.predictor.addTrainingCorpus(langCode, trainingText, {
+          description: `${langCode} language corpus`,
+          lexicon: state.baseLexicon
+        });
+        state.predictor.useCorpora([langCode]);
+        console.log(`📚 Added ${langCode} corpus with ${state.baseLexicon.length} words`);
+      } else {
+        // No training data, just update default corpus
+        initializePredictor();
+      }
+    }
 
     // Load training text to teach the PPM model character patterns
     // This must happen AFTER creating the predictor so bigrams are learned
@@ -300,6 +318,27 @@ async function selectLanguage(langCode) {
 }
 
 /**
+ * Get training text for a language (helper function)
+ * Returns null if no training data available
+ */
+async function getTrainingText(langCode) {
+  const filename = LANGUAGE_TRAINING_MAP[langCode];
+  if (!filename) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`../data/training/${filename}`);
+    if (!response.ok) {
+      return null;
+    }
+    return await response.text();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Load Training Data from File
  *
  * Loads a text file containing sample text in the selected language.
@@ -319,22 +358,22 @@ async function loadTrainingData(langCode) {
     console.log(`No training data for ${langCode}`);
     return;
   }
-  
+
   try {
     const response = await fetch(`../data/training/${filename}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const text = await response.text();
     state.trainingCharCount = text.length;
-    
+
     // Train the predictor
     if (state.predictor) {
       state.predictor.train(text);
       console.log(`📚 Trained on ${text.length} characters`);
     }
-    
+
   } catch (error) {
     console.warn(`Could not load training data: ${error.message}`);
     state.trainingCharCount = 0;

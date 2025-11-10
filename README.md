@@ -136,7 +136,7 @@ See [examples/train-from-file.js](examples/train-from-file.js) for complete exam
 
 ## Multiple Training Corpora
 
-**New in v1.1.0**: Train and manage multiple domain-specific corpora for context-aware predictions.
+**New in v0.0.7**: Train and manage multiple domain-specific corpora for context-aware predictions.
 
 ### Why Multiple Corpora?
 
@@ -151,16 +151,20 @@ Different contexts require different vocabularies and language patterns:
 ```javascript
 const { createPredictor } = require('@willwade/ppmpredictor');
 
-// Create predictor
-const predictor = createPredictor();
+// Create predictor with default English lexicon
+const predictor = createPredictor({
+  lexicon: englishWords  // Default corpus lexicon
+});
 
-// Add domain-specific training corpora
+// Add domain-specific training corpora with their own lexicons
 predictor.addTrainingCorpus('medical', medicalText, {
-  description: 'Medical terminology and phrases'
+  description: 'Medical terminology and phrases',
+  lexicon: medicalWords  // Medical-specific vocabulary
 });
 
 predictor.addTrainingCorpus('personal', personalDiaryText, {
-  description: 'User\'s personal vocabulary'
+  description: 'User\'s personal vocabulary',
+  lexicon: personalWords  // User's personal vocabulary
 });
 
 // Use specific corpora for predictions
@@ -170,33 +174,91 @@ predictor.useCorpora(['medical', 'personal']);
 const predictions = predictor.predictNextCharacter();
 ```
 
-### Node.js Example
+### Multilingual Example
+
+**New in v0.0.7**: Each corpus can have its own lexicon, enabling true multilingual support!
+
+```javascript
+const { createPredictor } = require('@willwade/ppmpredictor');
+const { loadFrequencyList } = require('worldalphabets');
+
+// Load frequency lists for different languages
+const englishWords = (await loadFrequencyList('en')).tokens.slice(0, 5000);
+const frenchWords = (await loadFrequencyList('fr')).tokens.slice(0, 5000);
+const spanishWords = (await loadFrequencyList('es')).tokens.slice(0, 5000);
+
+// Create predictor with English as default
+const predictor = createPredictor({
+  lexicon: englishWords
+});
+
+// Add French corpus with French lexicon
+const frenchText = fs.readFileSync('data/french_training.txt', 'utf-8');
+predictor.addTrainingCorpus('french', frenchText, {
+  description: 'French language corpus',
+  lexicon: frenchWords  // French-specific vocabulary
+});
+
+// Add Spanish corpus with Spanish lexicon
+const spanishText = fs.readFileSync('data/spanish_training.txt', 'utf-8');
+predictor.addTrainingCorpus('spanish', spanishText, {
+  description: 'Spanish language corpus',
+  lexicon: spanishWords  // Spanish-specific vocabulary
+});
+
+// Switch language based on user's selection
+if (currentLanguage === 'french') {
+  predictor.useCorpora(['french']);
+  // Word completion now uses French lexicon only
+} else if (currentLanguage === 'spanish') {
+  predictor.useCorpora(['spanish']);
+  // Word completion now uses Spanish lexicon only
+} else {
+  predictor.useCorpora(['default']);
+  // Word completion uses English lexicon
+}
+
+// Or use multiple languages simultaneously
+predictor.useCorpora(['french', 'spanish']);
+// Word completion merges both French and Spanish lexicons
+```
+
+### Domain-Specific Example
 
 ```javascript
 const fs = require('fs');
 const { createPredictor } = require('@willwade/ppmpredictor');
 
-const predictor = createPredictor();
-
-// Load and add medical corpus
-const medicalText = fs.readFileSync('data/medical_terms.txt', 'utf-8');
-predictor.addTrainingCorpus('medical', medicalText, {
-  description: 'Medical terminology'
+const predictor = createPredictor({
+  lexicon: generalWords  // General vocabulary
 });
 
-// Load and add work corpus
+// Load and add medical corpus with medical lexicon
+const medicalText = fs.readFileSync('data/medical_terms.txt', 'utf-8');
+const medicalWords = ['acetaminophen', 'ibuprofen', 'diagnosis', ...];
+predictor.addTrainingCorpus('medical', medicalText, {
+  description: 'Medical terminology',
+  lexicon: medicalWords
+});
+
+// Load and add work corpus with work-specific lexicon
 const workText = fs.readFileSync('data/work_emails.txt', 'utf-8');
+const workWords = ['meeting', 'deadline', 'project', ...];
 predictor.addTrainingCorpus('work', workText, {
-  description: 'Work-related vocabulary'
+  description: 'Work-related vocabulary',
+  lexicon: workWords
 });
 
 // Switch context based on user's activity
 if (userIsAtWork) {
   predictor.useCorpora(['work', 'default']);
+  // Merges work vocabulary with general vocabulary
 } else if (userIsAtDoctor) {
   predictor.useCorpora(['medical', 'default']);
+  // Merges medical vocabulary with general vocabulary
 } else {
   predictor.useAllCorpora(); // Use all available corpora
+  // Merges all lexicons: general + medical + work
 }
 ```
 
@@ -442,24 +504,27 @@ predictor.train('The quick brown fox jumps over the lazy dog');
 
 #### `addTrainingCorpus(corpusKey, text, options)`
 
-Add a new training corpus with a unique identifier.
+Add a new training corpus with a unique identifier and optional corpus-specific lexicon.
 
 **Parameters:**
-- `corpusKey` (string): Unique identifier for this corpus (e.g., 'medical', 'personal')
+- `corpusKey` (string): Unique identifier for this corpus (e.g., 'medical', 'personal', 'french')
 - `text` (string): Training text for this corpus
 - `options` (object, optional):
   - `description` (string): Human-readable description
   - `enabled` (boolean): Whether corpus should be active (default: true)
+  - `lexicon` (string[]): **NEW in v0.0.7** - Optional word list specific to this corpus
 
 ```javascript
-// Add medical terminology corpus
+// Add medical terminology corpus with medical lexicon
 predictor.addTrainingCorpus('medical', medicalText, {
-  description: 'Medical terminology and phrases'
+  description: 'Medical terminology and phrases',
+  lexicon: medicalWords  // Medical-specific vocabulary
 });
 
-// Add personal vocabulary
-predictor.addTrainingCorpus('personal', personalText, {
-  description: 'User\'s personal vocabulary'
+// Add French corpus with French lexicon (multilingual support)
+predictor.addTrainingCorpus('french', frenchText, {
+  description: 'French language corpus',
+  lexicon: frenchWords  // French-specific vocabulary
 });
 ```
 
