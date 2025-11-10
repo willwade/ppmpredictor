@@ -328,7 +328,7 @@ async function getTrainingText(langCode) {
   }
 
   try {
-    const response = await fetch(`../data/training/${filename}`);
+    const response = await fetch(`data/training/${filename}`);
     if (!response.ok) {
       return null;
     }
@@ -360,7 +360,7 @@ async function loadTrainingData(langCode) {
   }
 
   try {
-    const response = await fetch(`../data/training/${filename}`);
+    const response = await fetch(`data/training/${filename}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }

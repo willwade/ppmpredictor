@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9] - 2025-11-10
+
+### Added
+- **Per-corpus lexicons** - Each training corpus can now have its own lexicon for true multilingual and domain-specific support
+- **Bigram tracking** - Automatic word-pair frequency tracking for next-word prediction
+- **Multi-corpus management** - Train and manage multiple domain-specific corpora with `addTrainingCorpus()`, `useCorpora()`, `removeCorpus()`
+- **Next-word prediction API** - `predictNextWord()`, `exportBigrams()`, `importBigrams()`, `getBigramStats()`, `clearBigrams()`
+- **Multilingual demo** - Interactive demo with 24+ languages, WorldAlphabets integration, keyboard layout visualization
+- 6 new tests for per-corpus lexicon functionality
+- 8 new tests for bigram tracking
+- 10 new tests for multi-corpus management
+
+### Changed
+- **README restructured** - Improved organization with Quick Start, Usage, Advanced Usage, and API Reference sections
+- **Corpus data structure** - Each corpus now stores its own `lexicon`, `lexiconIndex`, `lexiconTree`, and `lexiconTrie`
+- **Word completion** - Now merges lexicons from all active corpora for multilingual support
+- **Training** - Automatically learns bigrams (word pairs) during `train()` and `addTrainingCorpus()`
+- **npm package size reduced by ~99%** - Removed training data from published package (149.7 KB vs ~23MB)
+
+### Fixed
+- **GitHub Pages demo paths** - Fixed resource loading for demo.html on GitHub Pages
+- Demo script path changed from `/demo-app.js` to `./demo-app.js`
+- Training data paths changed from `../data/training/` to `data/training/`
+
+### Documentation
+- Added comprehensive examples for multi-corpus usage
+- Added multilingual support examples (French, Spanish, English)
+- Added domain-specific vocabulary examples (medical, work, academic)
+- Added bigram tracking examples with export/import
+- Improved Keyboard-Aware Matching section with complete QWERTY adjacency map example
+- Added WorldAlphabets integration helper function example
+- Clarified lexicon vs no-lexicon behavior in Training section
+
+### Breaking Changes
+- None - All changes are backward compatible
+
+## [0.0.7] - 2025-11-09
+
 ### Added
 - Regression test to lock in key character/word/fuzzy predictions and guard future performance refactors.
 - Support for custom keyboard adjacency maps (plus example) when using keyboard-aware fuzzy matching.

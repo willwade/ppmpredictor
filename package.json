@@ -52,8 +52,6 @@
   "files": [
     "src/",
     "dist/",
-    "data/",
-    "examples/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
