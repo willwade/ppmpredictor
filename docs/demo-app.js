@@ -236,6 +236,7 @@ function updateKeyboardSelector(langCode) {
 
   // Select linear by default and display it
   select.value = 'linear';
+  state.keyboardLayout = buildLinearKeyboard();
   displayLinearLayout();
 }
 
@@ -269,12 +270,13 @@ async function selectLanguage(langCode) {
     state.baseLexicon = freqData.tokens.slice(0, 5000);
     console.log(`📖 Loaded ${state.baseLexicon.length} words for ${langCode}`);
 
-    // Load training text to teach the PPM model character patterns
-    // See: https://github.com/willwade/ppmpredictor#training-from-files
-    await loadTrainingData(langCode);
-
     // Create/update the predictor with new language data
     initializePredictor();
+
+    // Load training text to teach the PPM model character patterns
+    // This must happen AFTER creating the predictor so bigrams are learned
+    // See: https://github.com/willwade/ppmpredictor#training-from-files
+    await loadTrainingData(langCode);
 
     // Update statistics display
     updateStats();
@@ -415,28 +417,102 @@ function initializePredictor() {
  * See: https://github.com/willwade/ppmpredictor#keyboard-aware-mode
  */
 function buildAdjacencyMap(keyboard) {
+  // Check if keyboard already has a pre-built adjacency map (e.g., linear layout)
+  if (keyboard && keyboard.adjacencyMap) {
+    console.log('ℹ️ Using pre-built adjacency map from keyboard layout');
+    return keyboard.adjacencyMap;
+  }
+
   // Validate keyboard data exists
-  if (!keyboard || !keyboard.keys) {
-    console.warn('No keyboard data - using default QWERTY adjacency');
+  if (!keyboard || !keyboard.keys || !Array.isArray(keyboard.keys)) {
+    console.log('ℹ️ No keyboard data - using built-in QWERTY adjacency map');
     return null;
   }
 
   // Check if keyboard data includes physical position information
-  // We need row/col data to calculate which keys are adjacent
-  const hasPositionData = keyboard.keys.some(k => k.row !== null && k.row !== undefined);
+  // WorldAlphabets provides row, col, and pos data for each key
+  const hasPositionData = keyboard.keys.some(k => {
+    return k && typeof k === 'object' &&
+           typeof k.row === 'number' &&
+           typeof k.col === 'number';
+  });
 
   if (!hasPositionData) {
-    console.warn('Keyboard layout has no position data - using default QWERTY adjacency');
+    console.log('ℹ️ Keyboard layout has no position data - using built-in QWERTY adjacency map');
     return null;
   }
 
-  // If we had position data, we would build the adjacency map here
-  // Algorithm would be:
-  // 1. Group keys by row and column
-  // 2. For each key, find neighbors (±1 row, ±1 col)
-  // 3. Build map of key -> [adjacent keys]
-  console.warn('Position-based adjacency map not yet implemented - using default QWERTY adjacency');
-  return null;
+  console.log(`🎹 Building custom adjacency map from ${keyboard.name || keyboard.id} layout...`);
+
+  // Build adjacency map from position data
+  const adjacencyMap = {};
+
+  // Create a position lookup: "row,col" -> key
+  const positionMap = new Map();
+  for (const key of keyboard.keys) {
+    if (typeof key.row === 'number' && typeof key.col === 'number') {
+      const posKey = `${key.row},${key.col}`;
+      positionMap.set(posKey, key);
+    }
+  }
+
+  // For each key, find adjacent keys (within 1 row and 1 col)
+  for (const key of keyboard.keys) {
+    if (typeof key.row !== 'number' || typeof key.col !== 'number') {
+      continue;
+    }
+
+    // Get the base character for this key (unshifted)
+    // WorldAlphabets stores characters in the 'legends' object
+    // legends.base is the base (unshifted) character
+    let baseChar = null;
+    if (key.legends && typeof key.legends === 'object') {
+      baseChar = key.legends.base;
+    }
+
+    if (!baseChar || typeof baseChar !== 'string' || baseChar.length !== 1) {
+      continue; // Skip special keys, modifiers, etc.
+    }
+
+    const adjacent = [];
+    const row = key.row;
+    const col = key.col;
+
+    // Check all 8 surrounding positions
+    for (let r = row - 1; r <= row + 1; r++) {
+      for (let c = col - 1; c <= col + 1; c++) {
+        // Skip the key itself
+        if (r === row && c === col) {
+          continue;
+        }
+
+        const posKey = `${r},${c}`;
+        const adjacentKey = positionMap.get(posKey);
+
+        if (adjacentKey) {
+          let adjacentChar = null;
+          if (adjacentKey.legends && typeof adjacentKey.legends === 'object') {
+            adjacentChar = adjacentKey.legends.base;
+          }
+
+          if (adjacentChar && typeof adjacentChar === 'string' && adjacentChar.length === 1 && adjacentChar !== baseChar) {
+            adjacent.push(adjacentChar.toLowerCase());
+          }
+        }
+      }
+    }
+
+    // Store adjacency for both lowercase and uppercase
+    if (adjacent.length > 0) {
+      adjacencyMap[baseChar.toLowerCase()] = [...new Set(adjacent)]; // Remove duplicates
+      adjacencyMap[baseChar.toUpperCase()] = [...new Set(adjacent.map(c => c.toUpperCase()))];
+    }
+  }
+
+  const keyCount = Object.keys(adjacencyMap).length;
+  console.log(`✅ Built adjacency map with ${keyCount} keys from keyboard layout`);
+
+  return Object.keys(adjacencyMap).length > 0 ? adjacencyMap : null;
 }
 
 // Set up event listeners
@@ -462,6 +538,14 @@ function setupEventListeners() {
 
   document.getElementById('adaptive-toggle').addEventListener('change', () => {
     initializePredictor();
+  });
+
+  document.getElementById('next-word-toggle').addEventListener('change', () => {
+    // Update predictions when toggled
+    const input = document.getElementById('text-input');
+    if (input.value) {
+      input.dispatchEvent(new Event('input'));
+    }
   });
   
   // Text input
@@ -500,17 +584,35 @@ function handleTextInput(e) {
   // Get the last word being typed
   const words = text.split(/\s+/);
   const currentWord = words[words.length - 1];
+  const previousWord = words.length > 1 ? words[words.length - 2] : null;
+
+  // Check if next-word prediction is enabled
+  const nextWordEnabled = document.getElementById('next-word-toggle').checked;
+
+  // Determine what type of predictions to show
+  let completionPredictions = [];
+  let nextWordPredictions = [];
 
   if (currentWord.length === 0) {
-    document.getElementById('predictions').textContent = 'Start typing a word...';
-    return;
+    // User just finished a word (ended with space)
+    if (nextWordEnabled && previousWord && previousWord.length > 0) {
+      // Show next-word predictions
+      nextWordPredictions = state.predictor.predictNextWord(previousWord, 10);
+      displayPredictions([], currentWord, nextWordPredictions, previousWord);
+    } else {
+      document.getElementById('predictions').textContent = 'Start typing a word...';
+    }
+  } else {
+    // User is typing a word - show completion predictions
+    completionPredictions = state.predictor.predictWordCompletion(currentWord);
+
+    // Optionally also show next-word predictions if enabled
+    if (nextWordEnabled && previousWord && previousWord.length > 0) {
+      nextWordPredictions = state.predictor.predictNextWord(previousWord, 5);
+    }
+
+    displayPredictions(completionPredictions, currentWord, nextWordPredictions, previousWord);
   }
-
-  // Get predictions
-  const predictions = state.predictor.predictWordCompletion(currentWord);
-
-  // Display predictions with additional info
-  displayPredictions(predictions, currentWord);
 
   // If adaptive learning is enabled, learn from completed words
   if (document.getElementById('adaptive-toggle').checked && words.length > 1) {
@@ -526,26 +628,48 @@ function handleTextInput(e) {
 }
 
 // Display predictions
-function displayPredictions(predictions, currentWord) {
+function displayPredictions(completionPredictions, currentWord, nextWordPredictions = [], previousWord = null) {
   const container = document.getElementById('predictions');
+  let html = '';
 
-  if (predictions.length === 0) {
-    container.innerHTML = `<em>No predictions found for "${currentWord}"</em>`;
-
-    // If fuzzy matching is enabled, show a hint
-    if (!document.getElementById('fuzzy-toggle').checked) {
-      container.innerHTML += '<br><small>💡 Try enabling fuzzy matching to find similar words</small>';
-    }
-    return;
+  // Show word completion predictions
+  if (completionPredictions && completionPredictions.length > 0) {
+    html += '<div style="margin-bottom: 15px;">';
+    html += '<strong style="color: #667eea; display: block; margin-bottom: 8px;">📝 Complete: "' + currentWord + '"</strong>';
+    html += completionPredictions.map((p, index) => {
+      const isExactMatch = p.text.toLowerCase().startsWith(currentWord.toLowerCase());
+      const badge = isExactMatch ? '' : ' <small>~</small>';
+      const rank = index + 1;
+      return `<span class="prediction-item" onclick="insertPrediction('${p.text}')">${rank}. ${p.text}${badge}<span class="prob">${(p.probability * 100).toFixed(0)}%</span></span>`;
+    }).join('');
+    html += '</div>';
   }
 
-  // Show predictions with additional metadata
-  container.innerHTML = predictions.map((p, index) => {
-    const isExactMatch = p.text.toLowerCase().startsWith(currentWord.toLowerCase());
-    const badge = isExactMatch ? '' : ' <small>~</small>';
-    const rank = index + 1;
-    return `<span class="prediction-item" onclick="insertPrediction('${p.text}')">${rank}. ${p.text}${badge}<span class="prob">${(p.probability * 100).toFixed(0)}%</span></span>`;
-  }).join('');
+  // Show next-word predictions
+  if (nextWordPredictions && nextWordPredictions.length > 0) {
+    html += '<div>';
+    html += '<strong style="color: #764ba2; display: block; margin-bottom: 8px;">🔮 After "' + previousWord + '":</strong>';
+    html += nextWordPredictions.map((p, index) => {
+      const rank = index + 1;
+      return `<span class="prediction-item" onclick="insertPrediction('${p.text}')" style="background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);">${rank}. ${p.text}<span class="prob">${(p.probability * 100).toFixed(0)}%</span></span>`;
+    }).join('');
+    html += '</div>';
+  }
+
+  // If no predictions at all
+  if (html === '') {
+    if (currentWord && currentWord.length > 0) {
+      container.innerHTML = `<em>No predictions found for "${currentWord}"</em>`;
+      // If fuzzy matching is disabled, show a hint
+      if (!document.getElementById('fuzzy-toggle').checked) {
+        container.innerHTML += '<br><small>💡 Try enabling fuzzy matching to find similar words</small>';
+      }
+    } else {
+      container.innerHTML = '<em>Start typing a word...</em>';
+    }
+  } else {
+    container.innerHTML = html;
+  }
 }
 
 // Insert prediction into text input
@@ -561,24 +685,82 @@ window.insertPrediction = function(word) {
   input.dispatchEvent(new Event('input'));
 };
 
+/**
+ * Build Linear Keyboard Layout
+ *
+ * Creates a linear ABC layout for switch scanning where each character
+ * is adjacent to the previous and next character in sequence.
+ * This is commonly used in AAC devices for sequential scanning.
+ *
+ * Returns a keyboard object with adjacency map where:
+ * - 'a' is adjacent to ['b']
+ * - 'b' is adjacent to ['a', 'c']
+ * - 'c' is adjacent to ['b', 'd']
+ * etc.
+ */
+function buildLinearKeyboard() {
+  // Define the linear sequence (alphabet + numbers + common punctuation)
+  const sequence = 'abcdefghijklmnopqrstuvwxyz0123456789 .,!?\'-"';
+
+  // Build adjacency map
+  const adjacencyMap = {};
+
+  for (let i = 0; i < sequence.length; i++) {
+    const char = sequence[i];
+    const adjacent = [];
+
+    // Add previous character (if exists)
+    if (i > 0) {
+      adjacent.push(sequence[i - 1]);
+    }
+
+    // Add next character (if exists)
+    if (i < sequence.length - 1) {
+      adjacent.push(sequence[i + 1]);
+    }
+
+    // Store for both lowercase and uppercase
+    adjacencyMap[char] = adjacent;
+    if (char.match(/[a-z]/)) {
+      adjacencyMap[char.toUpperCase()] = adjacent.map(c => c.toUpperCase());
+    }
+  }
+
+  console.log(`📐 Built linear adjacency map with ${Object.keys(adjacencyMap).length} keys`);
+
+  // Return a keyboard-like object
+  return {
+    id: 'linear',
+    name: 'Linear ABC Layout (Switch Scanning)',
+    keys: [], // No physical keys
+    adjacencyMap: adjacencyMap // Custom adjacency map
+  };
+}
+
 // Select keyboard layout
 async function selectKeyboard(layoutId) {
   if (layoutId === 'linear') {
-    state.keyboardLayout = null;
+    // Build linear adjacency map for switch scanning
+    state.keyboardLayout = buildLinearKeyboard();
     displayLinearLayout();
-    return;
-  }
-  
-  try {
-    const keyboard = await loadKeyboard(layoutId);
-    state.keyboardLayout = keyboard;
-    displayKeyboardLayout(keyboard);
-    
+
     // Update predictor if keyboard-aware is enabled
     if (document.getElementById('keyboard-aware-toggle').checked) {
       initializePredictor();
     }
-    
+    return;
+  }
+
+  try {
+    const keyboard = await loadKeyboard(layoutId);
+    state.keyboardLayout = keyboard;
+    displayKeyboardLayout(keyboard);
+
+    // Update predictor if keyboard-aware is enabled
+    if (document.getElementById('keyboard-aware-toggle').checked) {
+      initializePredictor();
+    }
+
   } catch (error) {
     console.error('Error loading keyboard:', error);
     updateStatus(`⚠️ Could not load keyboard layout`, 'info');
@@ -591,16 +773,56 @@ async function selectKeyboard(layoutId) {
  * Shows a simple linear alphabet layout used for switch scanning.
  * This is commonly used in AAC (Augmentative and Alternative Communication)
  * devices where users scan through options sequentially.
+ *
+ * Each character is adjacent to the previous and next character in the sequence.
  */
 function displayLinearLayout() {
   const viz = document.getElementById('keyboard-viz');
   viz.innerHTML = '<strong>Linear ABC Layout (Switch Scanning)</strong><br><br>';
-  viz.innerHTML += '<p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">Sequential layout for switch scanning - no adjacency map needed.</p>';
-  viz.innerHTML += '<div style="font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; line-height: 2;">';
+
+  // Show the linear sequence
+  viz.innerHTML += '<div style="font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; line-height: 2; margin-bottom: 15px;">';
+  viz.innerHTML += '<div style="color: #666; font-size: 0.9em; margin-bottom: 10px;">Sequential layout for switch scanning:</div>';
   viz.innerHTML += 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z<br>';
   viz.innerHTML += '0 1 2 3 4 5 6 7 8 9<br>';
   viz.innerHTML += 'SPACE . , ! ? - \' "';
   viz.innerHTML += '</div>';
+
+  // Show the adjacency map
+  if (state.keyboardLayout && state.keyboardLayout.adjacencyMap) {
+    const adjacencyMap = state.keyboardLayout.adjacencyMap;
+
+    viz.innerHTML += '<div style="font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; font-size: 0.85em;">';
+    viz.innerHTML += '<div style="margin-bottom: 10px; padding: 10px; background: #d4edda; border-left: 3px solid #28a745; font-size: 0.9em;">';
+    viz.innerHTML += '<strong>✅ Linear Adjacency Map Built!</strong><br>Each character is adjacent to its neighbors in the sequence.';
+    viz.innerHTML += '</div>';
+    viz.innerHTML += '<div style="margin-bottom: 8px;"><strong>Adjacency Map (first 15 characters):</strong></div>';
+    viz.innerHTML += '<pre style="margin: 0; font-size: 0.8em; line-height: 1.6; max-height: 300px; overflow-y: auto; color: #333;">{\n';
+
+    // Show first 15 letter entries
+    const entries = Object.entries(adjacencyMap)
+      .filter(([char]) => char.match(/[a-z]/))
+      .sort()
+      .slice(0, 15);
+
+    for (const [char, adjacent] of entries) {
+      const adjacentStr = adjacent.map(c => `'${c}'`).join(', ');
+      viz.innerHTML += `  ${char}: [${adjacentStr}],\n`;
+    }
+
+    const totalKeys = Object.keys(adjacencyMap).filter(k => k.match(/[a-z]/)).length;
+    if (totalKeys > 15) {
+      viz.innerHTML += `  ... (${totalKeys - 15} more letters)\n`;
+    }
+
+    viz.innerHTML += '}</pre>';
+    viz.innerHTML += '<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 3px solid #2196f3; font-size: 0.85em;">';
+    viz.innerHTML += '<strong>💡 How it works:</strong> In linear scanning, each character is only adjacent to the previous ';
+    viz.innerHTML += 'and next character in the sequence. This helps with typo detection when users accidentally select ';
+    viz.innerHTML += 'the wrong character during sequential scanning.';
+    viz.innerHTML += '</div>';
+    viz.innerHTML += '</div>';
+  }
 }
 
 /**
@@ -629,15 +851,14 @@ function displayKeyboardLayout(keyboard) {
   viz.innerHTML = `<strong>${keyboard.name || keyboard.id || 'Keyboard Layout'}</strong><br><br>`;
 
   // Try to build adjacency map from keyboard data
-  // Note: WorldAlphabets keyboard data doesn't include physical positions,
-  // so this will return null and we'll use the default QWERTY adjacency
+  // WorldAlphabets provides row/col position data for each key
   const adjacencyMap = buildAdjacencyMap(keyboard);
 
   if (!adjacencyMap) {
     // Show default QWERTY adjacency map
     viz.innerHTML += '<div style="font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; font-size: 0.85em;">';
-    viz.innerHTML += '<div style="margin-bottom: 10px; color: #666;">Using default QWERTY adjacency map for keyboard-aware typo detection.</div>';
-    viz.innerHTML += '<div style="margin-bottom: 8px;"><strong>Adjacency Map Format:</strong></div>';
+    viz.innerHTML += '<div style="margin-bottom: 10px; color: #666;">Using built-in QWERTY adjacency map for keyboard-aware typo detection.</div>';
+    viz.innerHTML += '<div style="margin-bottom: 8px;"><strong>Default Adjacency Map (QWERTY):</strong></div>';
     viz.innerHTML += '<pre style="margin: 0; font-size: 0.8em; line-height: 1.6; color: #333;">{\n';
     viz.innerHTML += '  a: [\'q\', \'w\', \'s\', \'z\'],     // Keys adjacent to \'a\'\n';
     viz.innerHTML += '  b: [\'v\', \'g\', \'h\', \'n\'],     // Keys adjacent to \'b\'\n';
@@ -653,14 +874,17 @@ function displayKeyboardLayout(keyboard) {
     viz.innerHTML += '</div>';
     viz.innerHTML += '</div>';
   } else {
-    // Display custom adjacency map (if we had position data)
+    // Display custom adjacency map built from keyboard position data
     viz.innerHTML += '<div style="font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; font-size: 0.85em;">';
-    viz.innerHTML += '<div style="margin-bottom: 8px;"><strong>Custom Keyboard Adjacency Map:</strong></div>';
+    viz.innerHTML += '<div style="margin-bottom: 10px; padding: 10px; background: #d4edda; border-left: 3px solid #28a745; font-size: 0.9em;">';
+    viz.innerHTML += `<strong>✅ Custom Adjacency Map Built!</strong><br>Generated from ${keyboard.name || keyboard.id} physical key positions.`;
+    viz.innerHTML += '</div>';
+    viz.innerHTML += '<div style="margin-bottom: 8px;"><strong>Adjacency Map (first 20 keys):</strong></div>';
     viz.innerHTML += '<pre style="margin: 0; font-size: 0.8em; line-height: 1.6; max-height: 300px; overflow-y: auto; color: #333;">{\n';
 
-    // Show first 20 entries for brevity
+    // Show first 20 entries for brevity (lowercase only)
     const entries = Object.entries(adjacencyMap)
-      .filter(([char]) => char.match(/[a-z0-9]/i))
+      .filter(([char]) => char.match(/[a-z0-9]/))
       .sort()
       .slice(0, 20);
 
@@ -669,11 +893,16 @@ function displayKeyboardLayout(keyboard) {
       viz.innerHTML += `  ${char}: [${adjacentStr}],\n`;
     }
 
-    if (Object.keys(adjacencyMap).length > 20) {
-      viz.innerHTML += `  ... (${Object.keys(adjacencyMap).length - 20} more keys)\n`;
+    const totalKeys = Object.keys(adjacencyMap).filter(k => k.match(/[a-z0-9]/)).length;
+    if (totalKeys > 20) {
+      viz.innerHTML += `  ... (${totalKeys - 20} more keys)\n`;
     }
 
     viz.innerHTML += '}</pre>';
+    viz.innerHTML += '<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 3px solid #2196f3; font-size: 0.85em;">';
+    viz.innerHTML += '<strong>💡 Layout-specific detection:</strong> This custom map reflects the actual physical layout of ';
+    viz.innerHTML += `${keyboard.name || keyboard.id}, providing more accurate typo detection for this specific keyboard.`;
+    viz.innerHTML += '</div>';
     viz.innerHTML += '</div>';
   }
 }
@@ -713,6 +942,14 @@ function updateStats() {
   document.getElementById('stat-lexicon').textContent = state.baseLexicon.length;
   document.getElementById('stat-learned').textContent = state.learnedWords.size;
   document.getElementById('stat-training').textContent = state.trainingCharCount.toLocaleString();
+
+  // Update bigram statistics if predictor exists
+  if (state.predictor) {
+    const bigramStats = state.predictor.getBigramStats();
+    document.getElementById('stat-bigrams').textContent = bigramStats.uniqueBigrams.toLocaleString();
+  } else {
+    document.getElementById('stat-bigrams').textContent = '0';
+  }
 }
 
 // Update status message

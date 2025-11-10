@@ -379,6 +379,13 @@
             <a href="https://github.com/willwade/ppmpredictor#adaptive-mode" target="_blank" style="font-size: 0.8em; color: #667eea; text-decoration: none;" title="Learn about adaptive mode">ⓘ</a>
           </label>
         </div>
+        <div class="toggle">
+          <input type="checkbox" id="next-word-toggle">
+          <label for="next-word-toggle">
+            Next-Word Prediction
+            <a href="https://github.com/willwade/ppmpredictor#bigram-tracking-for-next-word-prediction" target="_blank" style="font-size: 0.8em; color: #667eea; text-decoration: none;" title="Learn about bigram tracking">ⓘ</a>
+          </label>
+        </div>
       </div>
 
       <div class="stats" id="stats">
@@ -393,6 +400,10 @@
         <div class="stat-card">
           <div class="value" id="stat-training">0</div>
           <div class="label">Training Chars</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-bigrams">0</div>
+          <div class="label">Bigrams</div>
         </div>
       </div>
 
@@ -470,6 +481,7 @@
         <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
           <li><strong>Multi-language Support:</strong> 24+ languages with real training data and frequency-based lexicons from <a href="https://github.com/AceCentre/WorldAlphabets" target="_blank" style="color: #667eea;">WorldAlphabets</a></li>
           <li><strong>Adaptive Learning:</strong> The model learns new words as you type (<a href="https://github.com/willwade/ppmpredictor#adaptive-mode" target="_blank" style="color: #667eea;">docs</a>)</li>
+          <li><strong>Next-Word Prediction:</strong> Bigram-based predictions suggest the next word after completing a word (<a href="https://github.com/willwade/ppmpredictor#bigram-tracking-for-next-word-prediction" target="_blank" style="color: #667eea;">docs</a>)</li>
           <li><strong>Error Tolerance:</strong> Fuzzy matching finds words even with typos (<a href="https://github.com/willwade/ppmpredictor#error-tolerant-prediction" target="_blank" style="color: #667eea;">docs</a>)</li>
           <li><strong>Keyboard-Aware Typos:</strong> Considers physical key proximity (<a href="https://github.com/willwade/ppmpredictor#keyboard-aware-mode" target="_blank" style="color: #667eea;">docs</a>)</li>
           <li><strong>PPM Algorithm:</strong> Uses Prediction by Partial Matching for context-aware predictions</li>
@@ -481,6 +493,7 @@
         <strong style="color: #856404;">💡 Try these experiments:</strong>
         <ul style="margin: 10px 0 0 20px; line-height: 1.8; color: #856404;">
           <li>Type with intentional typos and see how fuzzy matching corrects them</li>
+          <li>Enable next-word prediction and type common phrases to see word-pair suggestions</li>
           <li>Switch languages mid-sentence to see how the predictions adapt</li>
           <li>Enable adaptive learning and type new words to see them added to the lexicon</li>
           <li>Compare keyboard-aware vs. standard fuzzy matching with common typos</li>

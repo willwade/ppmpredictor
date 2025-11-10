@@ -134,6 +134,268 @@ predictor.train(trainingText);
 
 See [examples/train-from-file.js](examples/train-from-file.js) for complete examples.
 
+## Multiple Training Corpora
+
+**New in v1.1.0**: Train and manage multiple domain-specific corpora for context-aware predictions.
+
+### Why Multiple Corpora?
+
+Different contexts require different vocabularies and language patterns:
+- **Medical AAC user**: General conversation + medical terminology
+- **Multilingual user**: Different languages in separate corpora
+- **Professional**: Work vocabulary + personal vocabulary
+- **Student**: Academic subjects + casual communication
+
+### Basic Usage
+
+```javascript
+const { createPredictor } = require('@willwade/ppmpredictor');
+
+// Create predictor
+const predictor = createPredictor();
+
+// Add domain-specific training corpora
+predictor.addTrainingCorpus('medical', medicalText, {
+  description: 'Medical terminology and phrases'
+});
+
+predictor.addTrainingCorpus('personal', personalDiaryText, {
+  description: 'User\'s personal vocabulary'
+});
+
+// Use specific corpora for predictions
+predictor.useCorpora(['medical', 'personal']);
+
+// Get predictions (merged from both corpora)
+const predictions = predictor.predictNextCharacter();
+```
+
+### Node.js Example
+
+```javascript
+const fs = require('fs');
+const { createPredictor } = require('@willwade/ppmpredictor');
+
+const predictor = createPredictor();
+
+// Load and add medical corpus
+const medicalText = fs.readFileSync('data/medical_terms.txt', 'utf-8');
+predictor.addTrainingCorpus('medical', medicalText, {
+  description: 'Medical terminology'
+});
+
+// Load and add work corpus
+const workText = fs.readFileSync('data/work_emails.txt', 'utf-8');
+predictor.addTrainingCorpus('work', workText, {
+  description: 'Work-related vocabulary'
+});
+
+// Switch context based on user's activity
+if (userIsAtWork) {
+  predictor.useCorpora(['work', 'default']);
+} else if (userIsAtDoctor) {
+  predictor.useCorpora(['medical', 'default']);
+} else {
+  predictor.useAllCorpora(); // Use all available corpora
+}
+```
+
+### Browser Example
+
+```javascript
+import { createPredictor } from '@willwade/ppmpredictor';
+
+const predictor = createPredictor();
+
+// Fetch and add training corpora
+async function loadCorpora() {
+  // Load medical corpus
+  const medicalResponse = await fetch('data/medical.txt');
+  const medicalText = await medicalResponse.text();
+  predictor.addTrainingCorpus('medical', medicalText);
+
+  // Load personal corpus
+  const personalResponse = await fetch('data/personal.txt');
+  const personalText = await personalResponse.text();
+  predictor.addTrainingCorpus('personal', personalText);
+
+  // Use both corpora
+  predictor.useCorpora(['medical', 'personal']);
+}
+
+loadCorpora();
+```
+
+### Managing Corpora
+
+```javascript
+// List all corpora
+const allCorpora = predictor.getCorpora();
+console.log(allCorpora); // ['default', 'medical', 'personal']
+
+// List only active corpora
+const activeCorpora = predictor.getCorpora(true);
+console.log(activeCorpora); // ['medical', 'personal']
+
+// Get corpus information
+const info = predictor.getCorpusInfo('medical');
+console.log(info);
+// {
+//   key: 'medical',
+//   description: 'Medical terminology',
+//   enabled: true
+// }
+
+// Remove a corpus
+predictor.removeCorpus('old_vocabulary');
+
+// Use all corpora
+predictor.useAllCorpora();
+```
+
+### How Predictions are Merged
+
+When multiple corpora are active, PPMPredictor:
+1. Gets character predictions from each active corpus
+2. Averages the probabilities across all corpora
+3. Returns the top N predictions sorted by averaged probability
+
+This ensures that predictions reflect patterns from all relevant contexts.
+
+## Bigram Tracking for Next-Word Prediction
+
+In addition to character-level PPM predictions, PPMPredictor tracks **bigrams** (word pairs) to provide next-word suggestions. This complements the character-level model with word-level patterns.
+
+### What are Bigrams?
+
+Bigrams are consecutive word pairs learned from training text. For example, from the text "The quick brown fox", the bigrams are:
+- "the quick"
+- "quick brown"
+- "brown fox"
+
+When you type "quick", the predictor can suggest "brown" as the next word based on learned bigram frequencies.
+
+### How Bigram Tracking Works
+
+1. **Automatic Learning**: Bigrams are automatically learned when you call `train()` or `addTrainingCorpus()`
+2. **Frequency Tracking**: Each bigram's frequency is tracked across all training
+3. **Probability Calculation**: Predictions are based on relative frequencies
+
+### Basic Usage
+
+```javascript
+const { createPredictor } = require('@willwade/ppmpredictor');
+
+const predictor = createPredictor();
+
+// Train on text - automatically learns bigrams
+predictor.train('The quick brown fox jumps over the lazy dog');
+
+// Get next-word predictions
+const predictions = predictor.predictNextWord('quick');
+console.log(predictions);
+// [{ text: 'brown', probability: 1.0 }]
+```
+
+### Multiple Training Examples
+
+When the same word appears in different contexts, probabilities reflect the frequencies:
+
+```javascript
+predictor.train('hello world');
+predictor.train('hello there');
+predictor.train('hello friend');
+predictor.train('hello world'); // "world" appears twice
+
+const predictions = predictor.predictNextWord('hello');
+console.log(predictions);
+// [
+//   { text: 'world', probability: 0.5 },   // 2 out of 4
+//   { text: 'there', probability: 0.25 },  // 1 out of 4
+//   { text: 'friend', probability: 0.25 }  // 1 out of 4
+// ]
+```
+
+### Export and Import Bigrams
+
+You can save and restore learned bigrams:
+
+```javascript
+// Export bigrams to text
+const bigramText = predictor.exportBigrams();
+// Returns: "quick brown 1\nbrown fox 1\nhello world 2\n..."
+
+// Save to file (Node.js)
+const fs = require('fs');
+fs.writeFileSync('learned-bigrams.txt', bigramText);
+
+// Later: import bigrams
+const savedBigrams = fs.readFileSync('learned-bigrams.txt', 'utf-8');
+predictor.importBigrams(savedBigrams);
+```
+
+### Browser Usage
+
+```javascript
+// Export bigrams
+const bigramText = predictor.exportBigrams();
+
+// Save to localStorage
+localStorage.setItem('myBigrams', bigramText);
+
+// Later: restore
+const savedBigrams = localStorage.getItem('myBigrams');
+if (savedBigrams) {
+  predictor.importBigrams(savedBigrams);
+}
+```
+
+### Bigram Statistics
+
+Get information about learned bigrams:
+
+```javascript
+const stats = predictor.getBigramStats();
+console.log(`Learned ${stats.uniqueBigrams} unique word pairs`);
+console.log(`Total bigram occurrences: ${stats.totalBigrams}`);
+```
+
+### Clear Bigrams
+
+Reset bigram tracking:
+
+```javascript
+predictor.clearBigrams();
+```
+
+### Use Cases
+
+Bigram tracking is particularly useful for:
+
+- **AAC (Augmentative and Alternative Communication)**: Predict common phrases and word combinations
+- **Text Entry**: Speed up typing by suggesting likely next words
+- **Language Learning**: Learn common word collocations from training text
+- **Domain-Specific Text**: Capture technical terminology and phrase patterns
+
+### Combining with Character-Level Predictions
+
+PPMPredictor provides both:
+- **Character-level predictions** via `predictNextCharacter()` - great for typo correction and new words
+- **Word-level predictions** via `predictNextWord()` - great for phrase completion
+
+You can use both together for a comprehensive prediction system:
+
+```javascript
+// Character-level: predict next character
+predictor.addToContext('The qui');
+const charPreds = predictor.predictNextCharacter();
+// [{ text: 'c', probability: 0.85 }, ...]
+
+// Word-level: predict next word
+const wordPreds = predictor.predictNextWord('quick');
+// [{ text: 'brown', probability: 1.0 }]
+```
+
 ## API Reference
 
 ### Factory Functions
@@ -169,13 +431,179 @@ Creates a predictor with error-tolerant mode enabled.
 
 #### `train(text)`
 
-Train the model on text.
+Train the default corpus on text. For multi-corpus training, use `addTrainingCorpus()` instead.
 
 **Parameters:**
 - `text` (string): Training text
 
 ```javascript
 predictor.train('The quick brown fox jumps over the lazy dog');
+```
+
+#### `addTrainingCorpus(corpusKey, text, options)`
+
+Add a new training corpus with a unique identifier.
+
+**Parameters:**
+- `corpusKey` (string): Unique identifier for this corpus (e.g., 'medical', 'personal')
+- `text` (string): Training text for this corpus
+- `options` (object, optional):
+  - `description` (string): Human-readable description
+  - `enabled` (boolean): Whether corpus should be active (default: true)
+
+```javascript
+// Add medical terminology corpus
+predictor.addTrainingCorpus('medical', medicalText, {
+  description: 'Medical terminology and phrases'
+});
+
+// Add personal vocabulary
+predictor.addTrainingCorpus('personal', personalText, {
+  description: 'User\'s personal vocabulary'
+});
+```
+
+#### `useCorpora(corpusKeys)`
+
+Enable specific training corpora for predictions. Disables all other corpora.
+
+**Parameters:**
+- `corpusKeys` (string | string[]): Single corpus key or array of corpus keys
+
+```javascript
+// Use only medical corpus
+predictor.useCorpora('medical');
+
+// Use medical and personal corpora
+predictor.useCorpora(['medical', 'personal']);
+```
+
+#### `useAllCorpora()`
+
+Enable all loaded training corpora for predictions.
+
+```javascript
+predictor.useAllCorpora();
+```
+
+#### `getCorpora(onlyEnabled)`
+
+Get list of available corpus keys.
+
+**Parameters:**
+- `onlyEnabled` (boolean, optional): If true, only return enabled corpora
+
+**Returns:** Array of corpus keys (strings)
+
+```javascript
+const allCorpora = predictor.getCorpora();
+// ['default', 'medical', 'personal']
+
+const activeCorpora = predictor.getCorpora(true);
+// ['medical', 'personal']
+```
+
+#### `getCorpusInfo(corpusKey)`
+
+Get information about a specific corpus.
+
+**Parameters:**
+- `corpusKey` (string): Corpus identifier
+
+**Returns:** Object with corpus information
+
+```javascript
+const info = predictor.getCorpusInfo('medical');
+// {
+//   key: 'medical',
+//   description: 'Medical terminology',
+//   enabled: true
+// }
+```
+
+#### `removeCorpus(corpusKey)`
+
+Remove a training corpus. Cannot remove the 'default' corpus.
+
+**Parameters:**
+- `corpusKey` (string): Corpus identifier to remove
+
+```javascript
+predictor.removeCorpus('old_vocabulary');
+```
+
+#### `predictNextWord(currentWord, maxPredictions)`
+
+Predict next word based on learned bigram frequencies.
+
+**Parameters:**
+- `currentWord` (string): The current/last word typed
+- `maxPredictions` (number, optional): Maximum predictions to return (default: 10)
+
+**Returns:** Array of predictions with `text` and `probability`
+
+```javascript
+const predictions = predictor.predictNextWord('quick');
+// [{ text: 'brown', probability: 1.0 }]
+
+const predictions = predictor.predictNextWord('hello', 5);
+// Returns top 5 next-word predictions
+```
+
+#### `exportBigrams()`
+
+Export learned bigrams as text for saving/persistence.
+
+**Returns:** String with bigrams in format "word1 word2 count" (one per line)
+
+```javascript
+const bigramText = predictor.exportBigrams();
+// "quick brown 5\nbrown fox 5\nhello world 3\n..."
+
+// Save to file (Node.js)
+fs.writeFileSync('bigrams.txt', bigramText);
+
+// Save to localStorage (browser)
+localStorage.setItem('bigrams', bigramText);
+```
+
+#### `importBigrams(bigramText)`
+
+Import bigrams from text. Adds to existing bigrams rather than replacing.
+
+**Parameters:**
+- `bigramText` (string): Bigrams in text format
+
+```javascript
+// Load from file (Node.js)
+const bigramText = fs.readFileSync('bigrams.txt', 'utf-8');
+predictor.importBigrams(bigramText);
+
+// Load from localStorage (browser)
+const saved = localStorage.getItem('bigrams');
+if (saved) {
+  predictor.importBigrams(saved);
+}
+```
+
+#### `clearBigrams()`
+
+Clear all learned bigrams.
+
+```javascript
+predictor.clearBigrams();
+```
+
+#### `getBigramStats()`
+
+Get statistics about learned bigrams.
+
+**Returns:** Object with `uniqueBigrams` and `totalBigrams`
+
+```javascript
+const stats = predictor.getBigramStats();
+console.log(`Learned ${stats.uniqueBigrams} unique word pairs`);
+console.log(`Total occurrences: ${stats.totalBigrams}`);
 ```
 
 #### `resetContext()`
@@ -500,6 +928,7 @@ Contributions welcome! Please open an issue or PR on GitHub.
 
 ## Related Projects
 
+- [Predictionary](https://github.com/asterics/predictionary) - Dictionary-based prediction library. Really neat from the Asterics project. Just note ours does character level PPM modeling and also we can do things like keyboard-aware fuzzy matching.
 - [Google JSLM](https://github.com/google-research/google-research/tree/master/jslm) - Original JS LM code by Google team
 - [pylm](https://github.com/willwade/pylm) - Python PPM implementation
 - [Dasher](http://www.inference.org.uk/dasher/) - Original AAC application using PPM

@@ -43,6 +43,38 @@ export interface Prediction {
 }
 
 /**
+ * Options for adding a training corpus.
+ */
+export interface CorpusOptions {
+  /** Human-readable description of the corpus */
+  description?: string;
+  /** Whether this corpus should be active (default: true) */
+  enabled?: boolean;
+}
+
+/**
+ * Information about a training corpus.
+ */
+export interface CorpusInfo {
+  /** Corpus identifier */
+  key: string;
+  /** Human-readable description */
+  description: string;
+  /** Whether corpus is currently enabled */
+  enabled: boolean;
+}
+
+/**
+ * Bigram statistics.
+ */
+export interface BigramStats {
+  /** Number of unique bigrams learned */
+  uniqueBigrams: number;
+  /** Total bigram occurrences */
+  totalBigrams: number;
+}
+
+/**
  * Predictor class providing word and letter prediction.
  */
 export class Predictor {
@@ -53,10 +85,52 @@ export class Predictor {
   constructor(config?: PredictorConfig);
 
   /**
-   * Train the model on text.
+   * Train the default corpus on text.
+   * For multi-corpus training, use addTrainingCorpus() instead.
    * @param text Training text
    */
   train(text: string): void;
+
+  /**
+   * Add a new training corpus with a unique identifier.
+   * @param corpusKey Unique identifier for this corpus (e.g., 'medical', 'personal')
+   * @param text Training text for this corpus
+   * @param options Optional configuration
+   */
+  addTrainingCorpus(corpusKey: string, text: string, options?: CorpusOptions): void;
+
+  /**
+   * Enable specific training corpora for predictions.
+   * Disables all other corpora.
+   * @param corpusKeys Single corpus key or array of corpus keys to use
+   */
+  useCorpora(corpusKeys: string | string[]): void;
+
+  /**
+   * Enable all loaded training corpora for predictions.
+   */
+  useAllCorpora(): void;
+
+  /**
+   * Get list of available corpus keys.
+   * @param onlyEnabled If true, only return enabled corpora
+   * @returns Array of corpus keys
+   */
+  getCorpora(onlyEnabled?: boolean): string[];
+
+  /**
+   * Get information about a specific corpus.
+   * @param corpusKey Corpus identifier
+   * @returns Corpus information
+   */
+  getCorpusInfo(corpusKey: string): CorpusInfo;
+
+  /**
+   * Remove a training corpus.
+   * Cannot remove the 'default' corpus.
+   * @param corpusKey Corpus identifier to remove
+   */
+  removeCorpus(corpusKey: string): void;
 
   /**
    * Reset the prediction context.
@@ -72,6 +146,7 @@ export class Predictor {
 
   /**
    * Get character/letter predictions.
+   * Merges predictions from all active training corpora.
    * @param context Optional context string (uses current context if not provided)
    * @returns Array of character predictions
    */
@@ -84,6 +159,37 @@ export class Predictor {
    * @returns Array of word predictions
    */
   predictWordCompletion(partialWord: string, precedingContext?: string): Prediction[];
+
+  /**
+   * Predict next word based on bigram frequencies.
+   * @param currentWord The current/last word typed
+   * @param maxPredictions Maximum number of predictions to return (default: 10)
+   * @returns Array of next-word predictions sorted by probability
+   */
+  predictNextWord(currentWord: string, maxPredictions?: number): Prediction[];
+
+  /**
+   * Export learned bigrams as text.
+   * @returns Bigrams in text format (one per line: "word1 word2 count")
+   */
+  exportBigrams(): string;
+
+  /**
+   * Import bigrams from text.
+   * @param bigramText Bigrams in text format
+   */
+  importBigrams(bigramText: string): void;
+
+  /**
+   * Clear all learned bigrams.
+   */
+  clearBigrams(): void;
+
+  /**
+   * Get bigram statistics.
+   * @returns Bigram statistics
+   */
+  getBigramStats(): BigramStats;
 
   /**
    * Get current configuration.

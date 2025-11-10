@@ -71,7 +71,7 @@ class Predictor {
       lexicon: config.lexicon || []
     };
 
-    // Create vocabulary
+    // Create vocabulary (shared across all corpora)
     this.vocab = new vocab.Vocabulary();
 
     // Add all printable ASCII characters to vocabulary
@@ -83,11 +83,35 @@ class Predictor {
     this.vocab.addSymbol('\n');
     this.vocab.addSymbol('\t');
 
-    // Create PPM language model
-    this.model = new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder);
+    // Multi-corpus support
+    // Store multiple training corpora with their own PPM models
+    this._corpora = {
+      // Default corpus (backward compatibility)
+      'default': {
+        model: new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder),
+        enabled: true,
+        description: 'Default training corpus'
+      }
+    };
+
+    // Track which corpora are currently active
+    this._activeCorpora = ['default'];
+
+    // Create PPM language model (points to default corpus for backward compatibility)
+    this.model = this._corpora['default'].model;
 
     // Create context
     this.context = this.model.createContext();
+
+    // Bigram tracking for next-word prediction
+    // Maps "word1 word2" -> frequency count
+    this._bigrams = new Map();
+
+    // Track total bigram count for probability calculation
+    this._totalBigrams = 0;
+
+    // Track the last word for bigram learning
+    this._lastWord = null;
 
     // Build lexicon index if provided
     this._buildLexiconStructures();
@@ -95,13 +119,24 @@ class Predictor {
 
   /**
    * Train the model on text.
+   * Trains the default corpus for backward compatibility.
+   * For multi-corpus training, use addTrainingCorpus() instead.
+   *
+   * This method trains both the character-level PPM model and learns
+   * word-pair (bigram) frequencies for next-word prediction.
+   *
    * @param {string} text Training text.
+   *
+   * @example
+   * predictor.train('The quick brown fox jumps over the lazy dog');
+   * // Learns character patterns AND word pairs like "quick brown", "brown fox", etc.
    */
   train(text) {
     if (!text || typeof text !== 'string') {
       return;
     }
 
+    // Train character-level PPM model
     const chars = tokenizer.toCharArray(text);
     const context = this.model.createContext();
 
@@ -109,6 +144,183 @@ class Predictor {
       const symbolId = this.vocab.addSymbol(char);
       this.model.addSymbolAndUpdate(context, symbolId);
     }
+
+    // Learn bigrams from the training text
+    this._learnBigramsFromText(text);
+  }
+
+  /**
+   * Add a new training corpus with a unique key.
+   * Creates a new PPM model trained on the provided text.
+   *
+   * @param {string} corpusKey Unique identifier for this corpus (e.g., 'medical', 'personal')
+   * @param {string} text Training text for this corpus
+   * @param {Object} options Optional configuration
+   * @param {string} options.description Human-readable description of the corpus
+   * @param {boolean} options.enabled Whether this corpus should be active (default: true)
+   *
+   * @example
+   * // Add medical terminology corpus
+   * predictor.addTrainingCorpus('medical', medicalText, {
+   *   description: 'Medical terminology and phrases'
+   * });
+   *
+   * // Add personal vocabulary
+   * predictor.addTrainingCorpus('personal', personalText, {
+   *   description: 'User\'s personal vocabulary'
+   * });
+   */
+  addTrainingCorpus(corpusKey, text, options = {}) {
+    if (!corpusKey || typeof corpusKey !== 'string') {
+      throw new Error('corpusKey must be a non-empty string');
+    }
+
+    if (!text || typeof text !== 'string') {
+      throw new Error('text must be a non-empty string');
+    }
+
+    // Create new PPM model for this corpus
+    const corpusModel = new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder);
+
+    // Train the model on the provided text
+    const chars = tokenizer.toCharArray(text);
+    const context = corpusModel.createContext();
+
+    for (const char of chars) {
+      const symbolId = this.vocab.addSymbol(char);
+      corpusModel.addSymbolAndUpdate(context, symbolId);
+    }
+
+    // Store the corpus
+    this._corpora[corpusKey] = {
+      model: corpusModel,
+      enabled: options.enabled !== undefined ? options.enabled : true,
+      description: options.description || `Training corpus: ${corpusKey}`
+    };
+
+    // Add to active corpora if enabled
+    if (this._corpora[corpusKey].enabled && !this._activeCorpora.includes(corpusKey)) {
+      this._activeCorpora.push(corpusKey);
+    }
+  }
+
+  /**
+   * Enable specific training corpora for predictions.
+   * Disables all other corpora.
+   *
+   * @param {string|string[]} corpusKeys Single corpus key or array of corpus keys to use
+   *
+   * @example
+   * // Use only medical corpus
+   * predictor.useCorpora('medical');
+   *
+   * // Use medical and personal corpora
+   * predictor.useCorpora(['medical', 'personal']);
+   */
+  useCorpora(corpusKeys) {
+    const keys = Array.isArray(corpusKeys) ? corpusKeys : [corpusKeys];
+
+    // Validate all keys exist
+    for (const key of keys) {
+      if (!this._corpora[key]) {
+        throw new Error(`Corpus '${key}' does not exist. Available: ${Object.keys(this._corpora).join(', ')}`);
+      }
+    }
+
+    // Disable all corpora
+    Object.keys(this._corpora).forEach(key => {
+      this._corpora[key].enabled = false;
+    });
+
+    // Enable specified corpora
+    keys.forEach(key => {
+      this._corpora[key].enabled = true;
+    });
+
+    // Update active corpora list
+    this._activeCorpora = keys;
+
+    // Update default model reference if 'default' is active
+    if (keys.includes('default')) {
+      this.model = this._corpora['default'].model;
+    } else if (keys.length > 0) {
+      // Point to first active corpus
+      this.model = this._corpora[keys[0]].model;
+    }
+  }
+
+  /**
+   * Enable all loaded training corpora for predictions.
+   *
+   * @example
+   * predictor.useAllCorpora();
+   */
+  useAllCorpora() {
+    Object.keys(this._corpora).forEach(key => {
+      this._corpora[key].enabled = true;
+    });
+    this._activeCorpora = Object.keys(this._corpora);
+  }
+
+  /**
+   * Get list of available corpus keys.
+   *
+   * @param {boolean} onlyEnabled If true, only return enabled corpora
+   * @return {string[]} Array of corpus keys
+   *
+   * @example
+   * const allCorpora = predictor.getCorpora();
+   * const activeCorpora = predictor.getCorpora(true);
+   */
+  getCorpora(onlyEnabled = false) {
+    if (onlyEnabled) {
+      return this._activeCorpora.slice();
+    }
+    return Object.keys(this._corpora);
+  }
+
+  /**
+   * Get information about a specific corpus.
+   *
+   * @param {string} corpusKey Corpus identifier
+   * @return {Object} Corpus information (description, enabled status)
+   *
+   * @example
+   * const info = predictor.getCorpusInfo('medical');
+   * console.log(info.description); // "Medical terminology and phrases"
+   * console.log(info.enabled);     // true
+   */
+  getCorpusInfo(corpusKey) {
+    if (!this._corpora[corpusKey]) {
+      throw new Error(`Corpus '${corpusKey}' does not exist`);
+    }
+
+    return {
+      key: corpusKey,
+      description: this._corpora[corpusKey].description,
+      enabled: this._corpora[corpusKey].enabled
+    };
+  }
+
+  /**
+   * Remove a training corpus.
+   *
+   * @param {string} corpusKey Corpus identifier to remove
+   *
+   * @example
+   * predictor.removeCorpus('old_vocabulary');
+   */
+  removeCorpus(corpusKey) {
+    if (corpusKey === 'default') {
+      throw new Error('Cannot remove the default corpus');
+    }
+
+    if (!this._corpora[corpusKey]) {
+      throw new Error(`Corpus '${corpusKey}' does not exist`);
+    }
+
+    delete this._corpora[corpusKey];
+    this._activeCorpora = this._activeCorpora.filter(key => key !== corpusKey);
   }
 
   /**
@@ -147,26 +359,43 @@ class Predictor {
 
   /**
    * Get character/letter predictions.
+   * Merges predictions from all active training corpora.
+   *
    * @param {string} context Optional context string (uses current context if not provided).
    * @return {Array<Prediction>} Array of character predictions.
    */
   predictNextCharacter(context = null) {
-    let workingContext = this.context;
+    // If only one corpus is active, use fast path
+    if (this._activeCorpora.length === 1) {
+      return this._predictFromSingleCorpus(this._activeCorpora[0], context);
+    }
+
+    // Merge predictions from all active corpora
+    return this._predictFromMultipleCorpora(context);
+  }
+
+  /**
+   * Get predictions from a single corpus (fast path).
+   * @private
+   */
+  _predictFromSingleCorpus(corpusKey, context = null) {
+    const corpus = this._corpora[corpusKey];
+    let workingContext = corpusKey === 'default' ? this.context : corpus.model.createContext();
 
     if (context !== null) {
-      workingContext = this.model.createContext();
+      workingContext = corpus.model.createContext();
       const chars = tokenizer.toCharArray(context);
       for (const char of chars) {
         let symbolId = this.vocab.getSymbol(char);
         if (symbolId < 0) {
           symbolId = this.vocab.addSymbol(char);
         }
-        this.model.addSymbolToContext(workingContext, symbolId);
+        corpus.model.addSymbolToContext(workingContext, symbolId);
       }
     }
 
     // Get probabilities from PPM model
-    const probs = this.model.getProbs(workingContext);
+    const probs = corpus.model.getProbs(workingContext);
 
     // Convert to predictions array
     const predictions = [];
@@ -177,6 +406,67 @@ class Predictor {
           probability: probs[i]
         });
       }
+    }
+
+    // Sort by probability (descending)
+    predictions.sort((a, b) => b.probability - a.probability);
+
+    // Return top N predictions
+    return predictions.slice(0, this.config.maxPredictions);
+  }
+
+  /**
+   * Get predictions from multiple corpora and merge them.
+   * Averages probabilities across all active corpora.
+   * @private
+   */
+  _predictFromMultipleCorpora(context = null) {
+    const allPredictions = new Map(); // char -> { totalProb, count }
+
+    // Collect predictions from each active corpus
+    for (const corpusKey of this._activeCorpora) {
+      const corpus = this._corpora[corpusKey];
+      let workingContext = corpus.model.createContext();
+
+      // Build context if provided
+      if (context !== null) {
+        const chars = tokenizer.toCharArray(context);
+        for (const char of chars) {
+          let symbolId = this.vocab.getSymbol(char);
+          if (symbolId < 0) {
+            symbolId = this.vocab.addSymbol(char);
+          }
+          corpus.model.addSymbolToContext(workingContext, symbolId);
+        }
+      } else if (corpusKey === 'default') {
+        // Use current context for default corpus
+        workingContext = this.context;
+      }
+
+      // Get probabilities from this corpus
+      const probs = corpus.model.getProbs(workingContext);
+
+      // Accumulate probabilities
+      for (let i = 1; i < probs.length; i++) {
+        if (probs[i] > 0) {
+          const char = this.vocab.symbols_[i];
+          if (!allPredictions.has(char)) {
+            allPredictions.set(char, { totalProb: 0, count: 0 });
+          }
+          const entry = allPredictions.get(char);
+          entry.totalProb += probs[i];
+          entry.count++;
+        }
+      }
+    }
+
+    // Average probabilities and create predictions array
+    const predictions = [];
+    for (const [char, data] of allPredictions.entries()) {
+      predictions.push({
+        text: char,
+        probability: data.totalProb / data.count // Average across corpora
+      });
     }
 
     // Sort by probability (descending)
@@ -419,6 +709,212 @@ class Predictor {
 
     // Convert log probability to probability (normalized)
     return Math.exp(logProb / chars.length);
+  }
+
+  /**
+   * Learn bigrams (word pairs) from training text.
+   * Extracts word pairs and tracks their frequencies for next-word prediction.
+   *
+   * @param {string} text Training text to learn bigrams from.
+   * @private
+   *
+   * @example
+   * // Internal use: learns "quick brown", "brown fox", etc.
+   * this._learnBigramsFromText('The quick brown fox');
+   */
+  _learnBigramsFromText(text) {
+    if (!text || typeof text !== 'string') {
+      return;
+    }
+
+    // Tokenize text into words (splits on whitespace)
+    const words = tokenizer.tokenize(text);
+
+    // Normalize words based on case sensitivity setting
+    const normalizedWords = words.map(word =>
+      this.config.caseSensitive ? word : word.toLowerCase()
+    );
+
+    // Learn bigrams (consecutive word pairs)
+    for (let i = 0; i < normalizedWords.length - 1; i++) {
+      const word1 = normalizedWords[i];
+      const word2 = normalizedWords[i + 1];
+
+      // Skip empty words or punctuation-only words
+      if (!word1 || !word2 || word1.length === 0 || word2.length === 0) {
+        continue;
+      }
+
+      // Create bigram key "word1 word2"
+      const bigramKey = `${word1} ${word2}`;
+
+      // Increment frequency count
+      const currentCount = this._bigrams.get(bigramKey) || 0;
+      this._bigrams.set(bigramKey, currentCount + 1);
+      this._totalBigrams++;
+    }
+  }
+
+  /**
+   * Predict next word based on bigram frequencies.
+   * Uses learned word-pair patterns to suggest likely next words.
+   *
+   * @param {string} currentWord The current/last word typed.
+   * @param {number} maxPredictions Maximum number of predictions to return (default: 10).
+   * @return {Array<Prediction>} Array of next-word predictions sorted by probability.
+   *
+   * @example
+   * predictor.train('The quick brown fox jumps over the lazy dog');
+   * const predictions = predictor.predictNextWord('brown');
+   * // Returns: [{ text: 'fox', probability: 1.0 }]
+   *
+   * @example
+   * // With multiple training examples
+   * predictor.train('hello world');
+   * predictor.train('hello there');
+   * predictor.train('hello friend');
+   * const predictions = predictor.predictNextWord('hello');
+   * // Returns: [
+   * //   { text: 'world', probability: 0.33 },
+   * //   { text: 'there', probability: 0.33 },
+   * //   { text: 'friend', probability: 0.33 }
+   * // ]
+   */
+  predictNextWord(currentWord, maxPredictions = 10) {
+    if (!currentWord || typeof currentWord !== 'string') {
+      return [];
+    }
+
+    // Normalize the current word
+    const normalized = this.config.caseSensitive ? currentWord : currentWord.toLowerCase();
+
+    // Find all bigrams starting with this word
+    const nextWordCounts = new Map();
+    let totalCount = 0;
+
+    for (const [bigramKey, count] of this._bigrams.entries()) {
+      const [word1, word2] = bigramKey.split(' ');
+
+      if (word1 === normalized) {
+        nextWordCounts.set(word2, (nextWordCounts.get(word2) || 0) + count);
+        totalCount += count;
+      }
+    }
+
+    // Convert counts to probabilities
+    const predictions = [];
+    for (const [word, count] of nextWordCounts.entries()) {
+      predictions.push({
+        text: word,
+        probability: count / totalCount
+      });
+    }
+
+    // Sort by probability (descending) and return top N
+    predictions.sort((a, b) => b.probability - a.probability);
+    return predictions.slice(0, maxPredictions);
+  }
+
+  /**
+   * Export learned bigrams as text.
+   * Returns bigrams in a simple text format that can be saved and re-imported.
+   *
+   * @return {string} Bigrams in text format (one per line: "word1 word2 count").
+   *
+   * @example
+   * const bigramText = predictor.exportBigrams();
+   * // Returns:
+   * // "quick brown 5\n"
+   * // "brown fox 5\n"
+   * // "hello world 3\n"
+   * // ...
+   */
+  exportBigrams() {
+    const lines = [];
+
+    for (const [bigramKey, count] of this._bigrams.entries()) {
+      lines.push(`${bigramKey} ${count}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Import bigrams from text.
+   * Loads bigrams from a text format (one per line: "word1 word2 count").
+   * This adds to existing bigrams rather than replacing them.
+   *
+   * @param {string} bigramText Bigrams in text format.
+   *
+   * @example
+   * const bigramText = "quick brown 5\nbrown fox 5\nhello world 3";
+   * predictor.importBigrams(bigramText);
+   */
+  importBigrams(bigramText) {
+    if (!bigramText || typeof bigramText !== 'string') {
+      return;
+    }
+
+    const lines = bigramText.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      // Parse "word1 word2 count"
+      const parts = trimmed.split(' ');
+      if (parts.length < 3) {
+        continue; // Invalid format
+      }
+
+      // Last part is count, everything before is the bigram
+      const count = parseInt(parts[parts.length - 1], 10);
+      if (isNaN(count) || count <= 0) {
+        continue; // Invalid count
+      }
+
+      // Reconstruct bigram key (handles multi-word entries)
+      const bigramKey = parts.slice(0, parts.length - 1).join(' ');
+
+      // Add to bigrams
+      const currentCount = this._bigrams.get(bigramKey) || 0;
+      this._bigrams.set(bigramKey, currentCount + count);
+      this._totalBigrams += count;
+    }
+  }
+
+  /**
+   * Clear all learned bigrams.
+   * Resets bigram tracking to initial state.
+   *
+   * @example
+   * predictor.clearBigrams();
+   */
+  clearBigrams() {
+    this._bigrams.clear();
+    this._totalBigrams = 0;
+    this._lastWord = null;
+  }
+
+  /**
+   * Get bigram statistics.
+   * Returns information about learned bigrams.
+   *
+   * @return {Object} Bigram statistics.
+   * @return {number} return.uniqueBigrams - Number of unique bigrams learned.
+   * @return {number} return.totalBigrams - Total bigram occurrences.
+   *
+   * @example
+   * const stats = predictor.getBigramStats();
+   * console.log(`Learned ${stats.uniqueBigrams} unique word pairs`);
+   */
+  getBigramStats() {
+    return {
+      uniqueBigrams: this._bigrams.size,
+      totalBigrams: this._totalBigrams
+    };
   }
 
   /**

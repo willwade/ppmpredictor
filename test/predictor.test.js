@@ -358,6 +358,285 @@ test('Regression: top-N predictions remain stable', () => {
   });
 });
 
+// Multi-corpus tests
+console.log('\nMulti-Corpus Tests:');
+console.log('-'.repeat(60));
+
+test('Add training corpus', () => {
+  const predictor = createPredictor();
+  predictor.addTrainingCorpus('medical', 'medical terminology patient doctor hospital');
+  const corpora = predictor.getCorpora();
+  assert(corpora.includes('medical'), 'Medical corpus should be added');
+  assert(corpora.includes('default'), 'Default corpus should exist');
+});
+
+test('Get corpus info', () => {
+  const predictor = createPredictor();
+  predictor.addTrainingCorpus('medical', 'medical text', {
+    description: 'Medical terminology'
+  });
+  const info = predictor.getCorpusInfo('medical');
+  assert.strictEqual(info.description, 'Medical terminology');
+  assert.strictEqual(info.enabled, true);
+});
+
+test('Use specific corpus', () => {
+  const predictor = createPredictor();
+  predictor.train('hello world');
+  predictor.addTrainingCorpus('medical', 'medical terminology');
+
+  predictor.useCorpora('medical');
+  const activeCorpora = predictor.getCorpora(true);
+  assert.strictEqual(activeCorpora.length, 1);
+  assert.strictEqual(activeCorpora[0], 'medical');
+});
+
+test('Use multiple corpora', () => {
+  const predictor = createPredictor();
+  predictor.addTrainingCorpus('medical', 'medical text');
+  predictor.addTrainingCorpus('personal', 'personal text');
+
+  predictor.useCorpora(['medical', 'personal']);
+  const activeCorpora = predictor.getCorpora(true);
+  assert.strictEqual(activeCorpora.length, 2);
+  assert(activeCorpora.includes('medical'));
+  assert(activeCorpora.includes('personal'));
+});
+
+test('Use all corpora', () => {
+  const predictor = createPredictor();
+  predictor.addTrainingCorpus('medical', 'medical text');
+  predictor.addTrainingCorpus('personal', 'personal text');
+
+  predictor.useCorpora('medical'); // First use only medical
+  predictor.useAllCorpora(); // Then enable all
+
+  const activeCorpora = predictor.getCorpora(true);
+  assert.strictEqual(activeCorpora.length, 3); // default + medical + personal
+});
+
+test('Remove corpus', () => {
+  const predictor = createPredictor();
+  predictor.addTrainingCorpus('temp', 'temporary text');
+
+  let corpora = predictor.getCorpora();
+  assert(corpora.includes('temp'));
+
+  predictor.removeCorpus('temp');
+  corpora = predictor.getCorpora();
+  assert(!corpora.includes('temp'));
+});
+
+test('Cannot remove default corpus', () => {
+  const predictor = createPredictor();
+  try {
+    predictor.removeCorpus('default');
+    assert.fail('Should throw error when removing default corpus');
+  } catch (error) {
+    assert(error.message.includes('Cannot remove the default corpus'));
+  }
+});
+
+test('Predict from single corpus', () => {
+  const predictor = createPredictor();
+  predictor.train('hello hello hello world');
+
+  predictor.addToContext('hel');
+  const predictions = predictor.predictNextCharacter();
+
+  assert(predictions.length > 0);
+  assert.strictEqual(predictions[0].text, 'l'); // Should predict 'l' after 'hel'
+});
+
+test('Predict from multiple corpora', () => {
+  const predictor = createPredictor();
+
+  // Train default corpus on 'hello'
+  predictor.train('hello hello hello');
+
+  // Train medical corpus on 'help'
+  predictor.addTrainingCorpus('medical', 'help help help');
+
+  // Use both corpora
+  predictor.useCorpora(['default', 'medical']);
+
+  predictor.addToContext('hel');
+  const predictions = predictor.predictNextCharacter();
+
+  assert(predictions.length > 0);
+  // Should have predictions from both 'hello' and 'help'
+  const chars = predictions.map(p => p.text);
+  assert(chars.includes('l') || chars.includes('p'));
+});
+
+test('Multi-corpus predictions are merged', () => {
+  const predictor = createPredictor();
+
+  // Train two corpora with different patterns
+  predictor.train('aaa aaa aaa');
+  predictor.addTrainingCorpus('corpus2', 'bbb bbb bbb');
+
+  // Use both
+  predictor.useCorpora(['default', 'corpus2']);
+
+  predictor.resetContext();
+  const predictions = predictor.predictNextCharacter();
+
+  // Should have predictions from both corpora
+  const chars = predictions.map(p => p.text);
+  assert(chars.includes('a') || chars.includes('b'));
+});
+
+// ============================================================================
+// BIGRAM TRACKING TESTS
+// ============================================================================
+
+// Test 33: Learn bigrams from training text
+test('Learn bigrams from training text', () => {
+  const predictor = createPredictor();
+  predictor.train('The quick brown fox jumps over the lazy dog');
+
+  const stats = predictor.getBigramStats();
+  assert(stats.uniqueBigrams > 0, 'Should learn some bigrams');
+  assert(stats.totalBigrams > 0, 'Should have total bigram count');
+  assert(stats.uniqueBigrams <= stats.totalBigrams, 'Unique bigrams should not exceed total');
+});
+
+// Test 34: Predict next word using bigrams
+test('Predict next word using bigrams', () => {
+  const predictor = createPredictor();
+  predictor.train('The quick brown fox jumps over the lazy dog');
+
+  const predictions = predictor.predictNextWord('quick');
+  assert(Array.isArray(predictions), 'Should return array');
+  assert(predictions.length > 0, 'Should have predictions');
+  assert(predictions[0].text === 'brown', 'Should predict "brown" after "quick"');
+  assert(predictions[0].probability > 0, 'Should have probability');
+});
+
+// Test 35: Bigram predictions with multiple occurrences
+test('Bigram predictions with multiple occurrences', () => {
+  const predictor = createPredictor();
+  predictor.train('hello world');
+  predictor.train('hello there');
+  predictor.train('hello friend');
+  predictor.train('hello world'); // "world" appears twice
+
+  const predictions = predictor.predictNextWord('hello');
+  assert(predictions.length === 3, 'Should have 3 unique next words');
+
+  // "world" should have highest probability (appears twice)
+  const worldPred = predictions.find(p => p.text === 'world');
+  assert(worldPred, 'Should predict "world"');
+  assert(worldPred.probability === 0.5, 'Should have 50% probability (2/4)');
+
+  // Others should have 25% each
+  const therePred = predictions.find(p => p.text === 'there');
+  const friendPred = predictions.find(p => p.text === 'friend');
+  assert(therePred && therePred.probability === 0.25, 'Should have 25% probability');
+  assert(friendPred && friendPred.probability === 0.25, 'Should have 25% probability');
+});
+
+// Test 36: Export and import bigrams
+test('Export and import bigrams', () => {
+  const predictor1 = createPredictor();
+  predictor1.train('The quick brown fox');
+
+  const exported = predictor1.exportBigrams();
+  assert(typeof exported === 'string', 'Should export as string');
+  assert(exported.length > 0, 'Should have content');
+
+  const predictor2 = createPredictor();
+  predictor2.importBigrams(exported);
+
+  const stats1 = predictor1.getBigramStats();
+  const stats2 = predictor2.getBigramStats();
+  assert(stats1.uniqueBigrams === stats2.uniqueBigrams, 'Should have same unique bigrams');
+  assert(stats1.totalBigrams === stats2.totalBigrams, 'Should have same total bigrams');
+
+  // Predictions should match
+  const pred1 = predictor1.predictNextWord('quick');
+  const pred2 = predictor2.predictNextWord('quick');
+  assert(pred1.length === pred2.length, 'Should have same number of predictions');
+  assert(pred1[0].text === pred2[0].text, 'Should predict same word');
+});
+
+// Test 37: Clear bigrams
+test('Clear bigrams', () => {
+  const predictor = createPredictor();
+  predictor.train('The quick brown fox');
+
+  let stats = predictor.getBigramStats();
+  assert(stats.uniqueBigrams > 0, 'Should have bigrams before clear');
+
+  predictor.clearBigrams();
+
+  stats = predictor.getBigramStats();
+  assert(stats.uniqueBigrams === 0, 'Should have no bigrams after clear');
+  assert(stats.totalBigrams === 0, 'Should have zero total after clear');
+
+  const predictions = predictor.predictNextWord('quick');
+  assert(predictions.length === 0, 'Should have no predictions after clear');
+});
+
+// Test 38: Case sensitivity in bigrams
+test('Case sensitivity in bigrams', () => {
+  const caseSensitive = createPredictor({ caseSensitive: true });
+  caseSensitive.train('Hello World');
+  caseSensitive.train('hello world');
+
+  const predictions1 = caseSensitive.predictNextWord('Hello');
+  const predictions2 = caseSensitive.predictNextWord('hello');
+
+  assert(predictions1.length === 1, 'Should have one prediction for "Hello"');
+  assert(predictions2.length === 1, 'Should have one prediction for "hello"');
+  assert(predictions1[0].text === 'World', 'Should predict "World" (capitalized)');
+  assert(predictions2[0].text === 'world', 'Should predict "world" (lowercase)');
+
+  // Case insensitive
+  const caseInsensitive = createPredictor({ caseSensitive: false });
+  caseInsensitive.train('Hello World');
+  caseInsensitive.train('hello world');
+
+  const predictions3 = caseInsensitive.predictNextWord('hello');
+  assert(predictions3.length === 1, 'Should have one prediction');
+  assert(predictions3[0].text === 'world', 'Should predict "world"');
+  assert(predictions3[0].probability === 1.0, 'Should have 100% probability (both normalized to same bigram)');
+});
+
+// Test 39: Bigram predictions with max limit
+test('Bigram predictions with max limit', () => {
+  const predictor = createPredictor();
+  // Train with many different next words
+  for (let i = 0; i < 20; i++) {
+    predictor.train(`hello word${i}`);
+  }
+
+  const predictions5 = predictor.predictNextWord('hello', 5);
+  assert(predictions5.length === 5, 'Should return max 5 predictions');
+
+  const predictions10 = predictor.predictNextWord('hello', 10);
+  assert(predictions10.length === 10, 'Should return max 10 predictions');
+
+  const predictionsAll = predictor.predictNextWord('hello', 100);
+  assert(predictionsAll.length === 20, 'Should return all 20 predictions');
+});
+
+// Test 40: Empty or invalid input handling
+test('Empty or invalid input handling for bigrams', () => {
+  const predictor = createPredictor();
+  predictor.train('hello world');
+
+  assert(predictor.predictNextWord('').length === 0, 'Should return empty for empty string');
+  assert(predictor.predictNextWord('nonexistent').length === 0, 'Should return empty for unknown word');
+
+  predictor.importBigrams(''); // Should not crash
+  predictor.importBigrams('invalid format'); // Should not crash
+
+  const stats = predictor.getBigramStats();
+  assert(stats.uniqueBigrams > 0, 'Should still have original bigrams');
+});
+
 console.log();
 console.log('='.repeat(60));
 console.log(`Tests Passed: ${testsPassed}`);
