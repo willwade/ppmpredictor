@@ -1,6 +1,6 @@
 # PPM Predictor
 
-A  Node.js library for word and letter prediction with configurable error tolerance, built on PPM (Prediction by Partial Matching) language modeling. Original PPM JS code by Google.. 
+A Node.js library for word and letter prediction with configurable error tolerance, built on PPM (Prediction by Partial Matching) language modeling. Original PPM JS code by Google.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org)
@@ -14,7 +14,7 @@ A  Node.js library for word and letter prediction with configurable error tolera
 - Fuzzy matching and keyboard-aware typos
 - Real-time statistics
 
-## Features (aka emoji filled box that is all the rage..)
+## Features (aka your regular emoji-filled bullet list)
 
 - 🎯 **Character-level prediction** using PPM language model
 - 📝 **Word completion** with lexicon support
@@ -25,6 +25,32 @@ A  Node.js library for word and letter prediction with configurable error tolera
 - 🚀 **Zero dependencies** - pure JavaScript implementation
 - ♿ **AAC-focused** - designed for assistive technology applications
 - 🌍 **Multi-language support** - works with WorldAlphabets for 100+ languages
+- 📚 **Per-corpus lexicons** - NEW in v0.0.7! Each corpus can have its own vocabulary
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+  - [Training & Adaptive Learning](#training--adaptive-learning)
+  - [Next Character Prediction](#next-character-prediction)
+  - [Word Completion](#word-completion)
+  - [Next Word Prediction](#next-word-prediction)
+  - [Error-Tolerant Prediction](#error-tolerant-prediction)
+  - [Keyboard-Aware Matching](#keyboard-aware-matching)
+- [Advanced Usage](#advanced-usage)
+  - [Managing Multiple Corpora](#managing-multiple-corpora)
+  - [Multilingual Support](#multilingual-support)
+  - [Domain-Specific Vocabularies](#domain-specific-vocabularies)
+- [API Reference](#api-reference)
+- [Configuration Guide](#configuration-guide)
+- [Examples](#examples)
+- [Use Cases](#use-cases)
+- [Performance Considerations](#performance-considerations)
+- [Testing](#testing)
+- [License](#license)
+- [Credits](#credits)
+- [Contributing](#contributing)
 
 ## Installation
 
@@ -42,18 +68,76 @@ npm install @willwade/ppmpredictor
 
 ## Quick Start
 
-### Basic Character Prediction
-
 ```javascript
 const { createPredictor } = require('@willwade/ppmpredictor');
 
 // Create a predictor
-const predictor = createPredictor();
+const predictor = createPredictor({
+  lexicon: ['hello', 'help', 'hero', 'world', 'word']
+});
 
 // Train on some text
 predictor.train('The quick brown fox jumps over the lazy dog');
 
 // Add context and predict next character
+predictor.addToContext('The qui');
+const charPredictions = predictor.predictNextCharacter();
+console.log(charPredictions);
+// [{ text: 'c', probability: 0.85 }, ...]
+
+// Word completion
+const wordPredictions = predictor.predictWordCompletion('hel');
+console.log(wordPredictions);
+// [{ text: 'hello', probability: 0.45 }, { text: 'help', probability: 0.35 }, ...]
+
+// Next word prediction
+const nextWord = predictor.predictNextWord('quick');
+console.log(nextWord);
+// [{ text: 'brown', probability: 1.0 }]
+```
+
+## Usage
+
+### Training & Adaptive Learning
+
+Train the predictor on text to learn character patterns and word sequences:
+
+```javascript
+const { createPredictor } = require('@willwade/ppmpredictor');
+
+const predictor = createPredictor();
+
+// Train from a string
+predictor.train('The quick brown fox jumps over the lazy dog');
+
+// Train from a file
+const fs = require('fs');
+const trainingText = fs.readFileSync('training.txt', 'utf-8');
+predictor.train(trainingText);
+
+// Adaptive mode - learns as user types
+const adaptivePredictor = createPredictor({ adaptive: true });
+adaptivePredictor.addToContext('hello world');
+// Model automatically updates with new patterns
+```
+
+> **How Training Works**: The PPM (Prediction by Partial Matching) model learns character sequences and their probabilities. It also automatically tracks **bigrams** (word pairs) for next-word prediction. The more text you train on, the better the predictions become.
+
+**Available training files** (in parent project's `data/` directory):
+- `sample_training_text.txt` - General text for training
+- `sample_conversation.txt` - AAC conversation examples
+- `aac_lexicon_en_gb.txt` - AAC vocabulary (2,180 words)
+
+See [examples/train-from-file.js](examples/train-from-file.js) for complete examples.
+
+### Next Character Prediction
+
+Predict the most likely next character based on context:
+
+```javascript
+const predictor = createPredictor();
+predictor.train('The quick brown fox');
+
 predictor.addToContext('The qui');
 const predictions = predictor.predictNextCharacter();
 
@@ -61,17 +145,17 @@ console.log(predictions);
 // [
 //   { text: 'c', probability: 0.85 },
 //   { text: 'e', probability: 0.10 },
-//   ...
+//   { text: 't', probability: 0.05 }
 // ]
 ```
 
 ### Word Completion
 
-```javascript
-const { createPredictor } = require('@willwade/noisy-channel-predictor');
+Suggest word completions based on a partial word:
 
+```javascript
 const predictor = createPredictor({
-  lexicon: ['hello', 'help', 'hero', 'world', 'word']
+  lexicon: ['hello', 'help', 'hero', 'world', 'word', 'work']
 });
 
 const completions = predictor.predictWordCompletion('hel');
@@ -84,14 +168,67 @@ console.log(completions);
 // ]
 ```
 
-### Error-Tolerant Prediction
+**Loading lexicons from files:**
 
 ```javascript
-const { createErrorTolerantPredictor } = require('@willwade/noisy-channel-predictor');
+const fs = require('fs');
+
+// Load lexicon (one word per line)
+const lexicon = fs.readFileSync('lexicon.txt', 'utf-8')
+  .split('\n')
+  .filter(word => word.trim());
+
+const predictor = createPredictor({ lexicon });
+```
+
+### Next Word Prediction
+
+Predict the next word based on the previous word (using bigram tracking):
+
+```javascript
+const predictor = createPredictor();
+
+// Train on text - automatically learns word pairs
+predictor.train('The quick brown fox. The quick red fox. The quick brown dog.');
+
+// Predict next word after "quick"
+const predictions = predictor.predictNextWord('quick');
+
+console.log(predictions);
+// [
+//   { text: 'brown', probability: 0.67 },
+//   { text: 'red', probability: 0.33 }
+// ]
+```
+
+> **How Bigram Tracking Works**: Bigrams are automatically learned when you call `train()` or `addTrainingCorpus()`. Each word pair's frequency is tracked, and predictions are based on relative frequencies. For example, if "quick brown" appears twice and "quick red" appears once, "brown" gets a 67% probability.
+
+**Bigram statistics:**
+
+```javascript
+const stats = predictor.getBigramStats();
+console.log(stats);
+// { uniqueBigrams: 150, totalBigrams: 500 }
+
+// Export/import bigrams
+const bigramData = predictor.exportBigrams();
+fs.writeFileSync('bigrams.json', JSON.stringify(bigramData));
+
+const imported = JSON.parse(fs.readFileSync('bigrams.json', 'utf-8'));
+predictor.importBigrams(imported);
+```
+
+### Error-Tolerant Prediction
+
+Handle typos and noisy input with fuzzy matching:
+
+```javascript
+const { createErrorTolerantPredictor } = require('@willwade/ppmpredictor');
 
 const predictor = createErrorTolerantPredictor({
   lexicon: ['hello', 'help', 'world'],
-  maxEditDistance: 2
+  maxEditDistance: 2,      // Allow up to 2 character edits
+  minSimilarity: 0.5       // Require at least 50% similarity
 });
 
 // Works even with typos!
@@ -99,82 +236,98 @@ const predictions = predictor.predictWordCompletion('helo'); // Missing 'l'
 
 console.log(predictions);
 // [
-//   { text: 'hello', probability: 0.85 },
-//   { text: 'help', probability: 0.15 }
+//   { text: 'hello', probability: 0.85, distance: 1, similarity: 0.8 },
+//   { text: 'help', probability: 0.15, distance: 2, similarity: 0.5 }
 // ]
 ```
 
-## Training from Files
+### Keyboard-Aware Matching
 
-Load training data and lexicons from text files:
+Use physical keyboard layout to better handle typos:
 
 ```javascript
-const fs = require('fs');
-const { createPredictor } = require('@willwade/noisy-channel-predictor');
+const predictor = createPredictor({
+  lexicon: ['hello', 'jello', 'yellow'],
+  errorTolerant: true,
+  keyboardAware: true  // Uses QWERTY layout by default
+});
 
-// Load training text
-const trainingText = fs.readFileSync('training.txt', 'utf-8');
-
-// Load lexicon (one word per line)
-const lexicon = fs.readFileSync('lexicon.txt', 'utf-8')
-  .split('\n')
-  .filter(word => word.trim());
-
-// Create and train predictor
-const predictor = createPredictor({ lexicon });
-predictor.train(trainingText);
+// 'h' and 'j' are adjacent on QWERTY, so 'jello' scores higher
+const predictions = predictor.predictWordCompletion('helo');
+// 'jello' gets a better score than 'yellow' because 'h' and 'j' are close
 ```
 
-**Available training files** (in parent project's `data/` directory):
-- `sample_training_text.txt` - General text for training
-- `sample_conversation.txt` - AAC conversation examples
-- `aac_lexicon_en_gb.txt` - AAC vocabulary (2,180 words)
-- `comprehensive_lexicon.txt` - Large word list
-- `wordlist.txt` - General word list
+**Custom keyboard layouts:**
 
-See [examples/train-from-file.js](examples/train-from-file.js) for complete examples.
+```javascript
+const customLayout = {
+  'a': ['q', 's', 'z'],
+  'b': ['v', 'g', 'h', 'n'],
+  // ... define adjacency for all keys
+};
 
-## Multiple Training Corpora
+const predictor = createPredictor({
+  keyboardAware: true,
+  keyboardAdjacencyMap: customLayout
+});
+```
+
+**WorldAlphabets integration** (100+ keyboard layouts):
+
+```javascript
+const { loadKeyboardLayout } = require('worldalphabets');
+
+const layout = await loadKeyboardLayout('fr-azerty');
+const adjacencyMap = buildAdjacencyMap(layout); // Your helper function
+
+const predictor = createPredictor({
+  keyboardAware: true,
+  keyboardAdjacencyMap: adjacencyMap
+});
+```
+
+## Advanced Usage
+
+### Managing Multiple Corpora
 
 **New in v0.0.7**: Train and manage multiple domain-specific corpora for context-aware predictions.
-
-### Why Multiple Corpora?
-
-Different contexts require different vocabularies and language patterns:
-- **Medical AAC user**: General conversation + medical terminology
-- **Multilingual user**: Different languages in separate corpora
-- **Professional**: Work vocabulary + personal vocabulary
-- **Student**: Academic subjects + casual communication
-
-### Basic Usage
 
 ```javascript
 const { createPredictor } = require('@willwade/ppmpredictor');
 
-// Create predictor with default English lexicon
 const predictor = createPredictor({
-  lexicon: englishWords  // Default corpus lexicon
+  lexicon: generalWords  // Default corpus
 });
 
-// Add domain-specific training corpora with their own lexicons
+// Add domain-specific corpora
 predictor.addTrainingCorpus('medical', medicalText, {
-  description: 'Medical terminology and phrases',
-  lexicon: medicalWords  // Medical-specific vocabulary
+  description: 'Medical terminology',
+  lexicon: medicalWords
 });
 
-predictor.addTrainingCorpus('personal', personalDiaryText, {
-  description: 'User\'s personal vocabulary',
-  lexicon: personalWords  // User's personal vocabulary
+predictor.addTrainingCorpus('work', workText, {
+  description: 'Work vocabulary',
+  lexicon: workWords
 });
 
-// Use specific corpora for predictions
-predictor.useCorpora(['medical', 'personal']);
+// Switch context based on user's activity
+if (userIsAtWork) {
+  predictor.useCorpora(['work', 'default']);
+} else if (userIsAtDoctor) {
+  predictor.useCorpora(['medical', 'default']);
+} else {
+  predictor.useAllCorpora();
+}
 
-// Get predictions (merged from both corpora)
-const predictions = predictor.predictNextCharacter();
+// Manage corpora
+const allCorpora = predictor.getCorpora();
+const info = predictor.getCorpusInfo('medical');
+predictor.removeCorpus('old_vocabulary');
 ```
 
-### Multilingual Example
+> **How Predictions are Merged**: When multiple corpora are active, PPMPredictor gets character predictions from each active corpus, averages the probabilities, and returns the top N predictions sorted by averaged probability.
+
+### Multilingual Support
 
 **New in v0.0.7**: Each corpus can have its own lexicon, enabling true multilingual support!
 
@@ -218,244 +371,49 @@ if (currentLanguage === 'french') {
   // Word completion uses English lexicon
 }
 
-// Or use multiple languages simultaneously
+// Or use multiple languages simultaneously (code-switching)
 predictor.useCorpora(['french', 'spanish']);
 // Word completion merges both French and Spanish lexicons
 ```
 
-### Domain-Specific Example
+### Domain-Specific Vocabularies
+
+Different contexts require different vocabularies:
 
 ```javascript
-const fs = require('fs');
-const { createPredictor } = require('@willwade/ppmpredictor');
-
 const predictor = createPredictor({
   lexicon: generalWords  // General vocabulary
 });
 
-// Load and add medical corpus with medical lexicon
-const medicalText = fs.readFileSync('data/medical_terms.txt', 'utf-8');
-const medicalWords = ['acetaminophen', 'ibuprofen', 'diagnosis', ...];
+// Medical AAC user
+const medicalWords = ['acetaminophen', 'ibuprofen', 'diagnosis', 'prescription'];
 predictor.addTrainingCorpus('medical', medicalText, {
   description: 'Medical terminology',
   lexicon: medicalWords
 });
 
-// Load and add work corpus with work-specific lexicon
-const workText = fs.readFileSync('data/work_emails.txt', 'utf-8');
-const workWords = ['meeting', 'deadline', 'project', ...];
+// Professional user
+const workWords = ['meeting', 'deadline', 'project', 'presentation'];
 predictor.addTrainingCorpus('work', workText, {
   description: 'Work-related vocabulary',
   lexicon: workWords
 });
 
+// Student
+const academicWords = ['assignment', 'lecture', 'exam', 'research'];
+predictor.addTrainingCorpus('academic', academicText, {
+  description: 'Academic vocabulary',
+  lexicon: academicWords
+});
+
 // Switch context based on user's activity
 if (userIsAtWork) {
   predictor.useCorpora(['work', 'default']);
-  // Merges work vocabulary with general vocabulary
 } else if (userIsAtDoctor) {
   predictor.useCorpora(['medical', 'default']);
-  // Merges medical vocabulary with general vocabulary
-} else {
-  predictor.useAllCorpora(); // Use all available corpora
-  // Merges all lexicons: general + medical + work
+} else if (userIsAtSchool) {
+  predictor.useCorpora(['academic', 'default']);
 }
-```
-
-### Browser Example
-
-```javascript
-import { createPredictor } from '@willwade/ppmpredictor';
-
-const predictor = createPredictor();
-
-// Fetch and add training corpora
-async function loadCorpora() {
-  // Load medical corpus
-  const medicalResponse = await fetch('data/medical.txt');
-  const medicalText = await medicalResponse.text();
-  predictor.addTrainingCorpus('medical', medicalText);
-
-  // Load personal corpus
-  const personalResponse = await fetch('data/personal.txt');
-  const personalText = await personalResponse.text();
-  predictor.addTrainingCorpus('personal', personalText);
-
-  // Use both corpora
-  predictor.useCorpora(['medical', 'personal']);
-}
-
-loadCorpora();
-```
-
-### Managing Corpora
-
-```javascript
-// List all corpora
-const allCorpora = predictor.getCorpora();
-console.log(allCorpora); // ['default', 'medical', 'personal']
-
-// List only active corpora
-const activeCorpora = predictor.getCorpora(true);
-console.log(activeCorpora); // ['medical', 'personal']
-
-// Get corpus information
-const info = predictor.getCorpusInfo('medical');
-console.log(info);
-// {
-//   key: 'medical',
-//   description: 'Medical terminology',
-//   enabled: true
-// }
-
-// Remove a corpus
-predictor.removeCorpus('old_vocabulary');
-
-// Use all corpora
-predictor.useAllCorpora();
-```
-
-### How Predictions are Merged
-
-When multiple corpora are active, PPMPredictor:
-1. Gets character predictions from each active corpus
-2. Averages the probabilities across all corpora
-3. Returns the top N predictions sorted by averaged probability
-
-This ensures that predictions reflect patterns from all relevant contexts.
-
-## Bigram Tracking for Next-Word Prediction
-
-In addition to character-level PPM predictions, PPMPredictor tracks **bigrams** (word pairs) to provide next-word suggestions. This complements the character-level model with word-level patterns.
-
-### What are Bigrams?
-
-Bigrams are consecutive word pairs learned from training text. For example, from the text "The quick brown fox", the bigrams are:
-- "the quick"
-- "quick brown"
-- "brown fox"
-
-When you type "quick", the predictor can suggest "brown" as the next word based on learned bigram frequencies.
-
-### How Bigram Tracking Works
-
-1. **Automatic Learning**: Bigrams are automatically learned when you call `train()` or `addTrainingCorpus()`
-2. **Frequency Tracking**: Each bigram's frequency is tracked across all training
-3. **Probability Calculation**: Predictions are based on relative frequencies
-
-### Basic Usage
-
-```javascript
-const { createPredictor } = require('@willwade/ppmpredictor');
-
-const predictor = createPredictor();
-
-// Train on text - automatically learns bigrams
-predictor.train('The quick brown fox jumps over the lazy dog');
-
-// Get next-word predictions
-const predictions = predictor.predictNextWord('quick');
-console.log(predictions);
-// [{ text: 'brown', probability: 1.0 }]
-```
-
-### Multiple Training Examples
-
-When the same word appears in different contexts, probabilities reflect the frequencies:
-
-```javascript
-predictor.train('hello world');
-predictor.train('hello there');
-predictor.train('hello friend');
-predictor.train('hello world'); // "world" appears twice
-
-const predictions = predictor.predictNextWord('hello');
-console.log(predictions);
-// [
-//   { text: 'world', probability: 0.5 },   // 2 out of 4
-//   { text: 'there', probability: 0.25 },  // 1 out of 4
-//   { text: 'friend', probability: 0.25 }  // 1 out of 4
-// ]
-```
-
-### Export and Import Bigrams
-
-You can save and restore learned bigrams:
-
-```javascript
-// Export bigrams to text
-const bigramText = predictor.exportBigrams();
-// Returns: "quick brown 1\nbrown fox 1\nhello world 2\n..."
-
-// Save to file (Node.js)
-const fs = require('fs');
-fs.writeFileSync('learned-bigrams.txt', bigramText);
-
-// Later: import bigrams
-const savedBigrams = fs.readFileSync('learned-bigrams.txt', 'utf-8');
-predictor.importBigrams(savedBigrams);
-```
-
-### Browser Usage
-
-```javascript
-// Export bigrams
-const bigramText = predictor.exportBigrams();
-
-// Save to localStorage
-localStorage.setItem('myBigrams', bigramText);
-
-// Later: restore
-const savedBigrams = localStorage.getItem('myBigrams');
-if (savedBigrams) {
-  predictor.importBigrams(savedBigrams);
-}
-```
-
-### Bigram Statistics
-
-Get information about learned bigrams:
-
-```javascript
-const stats = predictor.getBigramStats();
-console.log(`Learned ${stats.uniqueBigrams} unique word pairs`);
-console.log(`Total bigram occurrences: ${stats.totalBigrams}`);
-```
-
-### Clear Bigrams
-
-Reset bigram tracking:
-
-```javascript
-predictor.clearBigrams();
-```
-
-### Use Cases
-
-Bigram tracking is particularly useful for:
-
-- **AAC (Augmentative and Alternative Communication)**: Predict common phrases and word combinations
-- **Text Entry**: Speed up typing by suggesting likely next words
-- **Language Learning**: Learn common word collocations from training text
-- **Domain-Specific Text**: Capture technical terminology and phrase patterns
-
-### Combining with Character-Level Predictions
-
-PPMPredictor provides both:
-- **Character-level predictions** via `predictNextCharacter()` - great for typo correction and new words
-- **Word-level predictions** via `predictNextWord()` - great for phrase completion
-
-You can use both together for a comprehensive prediction system:
-
-```javascript
-// Character-level: predict next character
-predictor.addToContext('The qui');
-const charPreds = predictor.predictNextCharacter();
-// [{ text: 'c', probability: 0.85 }, ...]
-
-// Word-level: predict next word
-const wordPreds = predictor.predictNextWord('quick');
-// [{ text: 'brown', probability: 1.0 }]
 ```
 
 ## API Reference
@@ -470,24 +428,45 @@ Creates a new predictor instance with the given configuration.
 - `config` (Object, optional): Configuration options
   - `maxOrder` (number): Maximum context length for PPM (default: 5)
   - `errorTolerant` (boolean): Enable error-tolerant mode (default: false)
-- `maxEditDistance` (number): Maximum edit distance for fuzzy matching (default: 2)
-- `minSimilarity` (number): Minimum similarity score 0-1 (default: 0.5)
-- `keyboardAware` (boolean): Use keyboard-aware distance (default: false)
-- `keyboardAdjacencyMap` (Object): Override the default QWERTY neighbours for keyboard-aware mode
-- `caseSensitive` (boolean): Case-sensitive matching (default: false)
+  - `maxEditDistance` (number): Maximum edit distance for fuzzy matching (default: 2)
+  - `minSimilarity` (number): Minimum similarity score 0-1 (default: 0.5)
+  - `keyboardAware` (boolean): Use keyboard-aware distance (default: false)
+  - `keyboardAdjacencyMap` (Object): Custom keyboard adjacency map
+  - `caseSensitive` (boolean): Case-sensitive matching (default: false)
   - `maxPredictions` (number): Maximum predictions to return (default: 10)
   - `adaptive` (boolean): Update model as text is entered (default: false)
   - `lexicon` (Array<string>): Optional word list for word prediction (default: [])
 
 **Returns:** `Predictor` instance
 
+```javascript
+const predictor = createPredictor({
+  errorTolerant: true,
+  maxEditDistance: 2,
+  keyboardAware: true,
+  adaptive: true,
+  lexicon: ['hello', 'world']
+});
+```
+
 #### `createStrictPredictor(config)`
 
 Creates a predictor with strict mode (exact matching only).
 
+```javascript
+const predictor = createStrictPredictor({ lexicon: words });
+```
+
 #### `createErrorTolerantPredictor(config)`
 
 Creates a predictor with error-tolerant mode enabled.
+
+```javascript
+const predictor = createErrorTolerantPredictor({
+  lexicon: words,
+  maxEditDistance: 2
+});
+```
 
 ### Predictor Class
 
@@ -518,13 +497,13 @@ Add a new training corpus with a unique identifier and optional corpus-specific 
 // Add medical terminology corpus with medical lexicon
 predictor.addTrainingCorpus('medical', medicalText, {
   description: 'Medical terminology and phrases',
-  lexicon: medicalWords  // Medical-specific vocabulary
+  lexicon: medicalWords
 });
 
 // Add French corpus with French lexicon (multilingual support)
 predictor.addTrainingCorpus('french', frenchText, {
   description: 'French language corpus',
-  lexicon: frenchWords  // French-specific vocabulary
+  lexicon: frenchWords
 });
 ```
 
@@ -597,6 +576,56 @@ Remove a training corpus. Cannot remove the 'default' corpus.
 predictor.removeCorpus('old_vocabulary');
 ```
 
+#### `addToContext(text)`
+
+Add text to the prediction context.
+
+**Parameters:**
+- `text` (string): Text to add to context
+
+```javascript
+predictor.addToContext('The quick brown');
+```
+
+#### `resetContext()`
+
+Reset the prediction context to empty.
+
+```javascript
+predictor.resetContext();
+```
+
+#### `predictNextCharacter(maxPredictions)`
+
+Predict the next character based on current context.
+
+**Parameters:**
+- `maxPredictions` (number, optional): Maximum predictions to return
+
+**Returns:** Array of predictions with `text` and `probability`
+
+```javascript
+predictor.addToContext('The qui');
+const predictions = predictor.predictNextCharacter();
+// [{ text: 'c', probability: 0.85 }, ...]
+```
+
+#### `predictWordCompletion(partialWord, precedingContext, maxPredictions)`
+
+Predict word completions based on partial word.
+
+**Parameters:**
+- `partialWord` (string): Partial word to complete
+- `precedingContext` (string, optional): Context before the word
+- `maxPredictions` (number, optional): Maximum predictions to return
+
+**Returns:** Array of predictions with `text` and `probability`
+
+```javascript
+const predictions = predictor.predictWordCompletion('hel');
+// [{ text: 'hello', probability: 0.45 }, ...]
+```
+
 #### `predictNextWord(currentWord, maxPredictions)`
 
 Predict next word based on learned bigram frequencies.
@@ -610,9 +639,6 @@ Predict next word based on learned bigram frequencies.
 ```javascript
 const predictions = predictor.predictNextWord('quick');
 // [{ text: 'brown', probability: 1.0 }]
-
-const predictions = predictor.predictNextWord('hello', 5);
-// Returns top 5 next-word predictions
 ```
 
 #### `exportBigrams()`
@@ -623,7 +649,7 @@ Export learned bigrams as text for saving/persistence.
 
 ```javascript
 const bigramText = predictor.exportBigrams();
-// "quick brown 5\nbrown fox 5\nhello world 3\n..."
+// "quick brown 5\nbrown fox 5\n..."
 
 // Save to file (Node.js)
 fs.writeFileSync('bigrams.txt', bigramText);
@@ -671,135 +697,117 @@ console.log(`Learned ${stats.uniqueBigrams} unique word pairs`);
 console.log(`Total occurrences: ${stats.totalBigrams}`);
 ```
 
-#### `resetContext()`
-
-Reset the prediction context to empty.
-
-```javascript
-predictor.resetContext();
-```
-
-#### `addToContext(text, update)`
-
-Add text to the current context.
-
-**Parameters:**
-- `text` (string): Text to add to context
-- `update` (boolean, optional): Whether to update the model (defaults to `config.adaptive`)
-
-```javascript
-predictor.addToContext('Hello ');
-predictor.addToContext('world', true); // Update model
-```
-
-### Live Adaptive Training
-
-Enable adaptive mode to let the model learn from confirmed user input in real time:
-
-```javascript
-const predictor = createPredictor({ adaptive: true });
-
-function onUserAccepted(text) {
-  // Include a delimiter so the model learns word boundaries.
-  predictor.addToContext(text + ' ');
-}
-```
-
-Only commit text after the user finalises it (e.g. presses space/enter or taps a suggestion) so the model does not memorise transient typos.
-
-To persist the incremental learning, store the accepted text and replay it on startup:
-
-```javascript
-const replayBuffer = loadFromStorage(); // e.g. localStorage, IndexedDB, server
-
-if (replayBuffer) {
-  predictor.train(replayBuffer);
-}
-```
-
-If you manage a custom lexicon alongside adaptive training, update both together:
-
-```javascript
-myLexicon.push('newword');
-predictor.updateConfig({ lexicon: myLexicon });
-```
-
-This gives you live self-learning without needing a full retrain cycle.
-
-#### `predictNextCharacter(context)`
-
-Get character/letter predictions.
-
-**Parameters:**
-- `context` (string, optional): Context string (uses current context if not provided)
-
-**Returns:** Array of `{ text: string, probability: number }`
-
-```javascript
-const predictions = predictor.predictNextCharacter('The qui');
-```
-
-#### `predictWordCompletion(partialWord, precedingContext)`
-
-Get word completion predictions.
-
-**Parameters:**
-- `partialWord` (string): Partial word to complete
-- `precedingContext` (string, optional): Preceding context
-
-**Returns:** Array of `{ text: string, probability: number }`
-
-```javascript
-const completions = predictor.predictWordCompletion('hel', 'I need some ');
-```
-
 #### `updateConfig(newConfig)`
 
-Update configuration at runtime.
+Update predictor configuration at runtime.
 
 **Parameters:**
-- `newConfig` (Object): Configuration updates
+- `newConfig` (object): Configuration options to update
 
 ```javascript
 predictor.updateConfig({
   errorTolerant: true,
-  maxEditDistance: 3
+  maxEditDistance: 3,
+  lexicon: newWordList
 });
 ```
 
-#### `getConfig()`
+## Configuration Guide
 
-Get current configuration.
+### Strict Mode vs Error-Tolerant Mode
 
-**Returns:** Configuration object
-
-### Utility Functions
-
-#### `levenshteinDistance(str1, str2)`
-
-Calculate edit distance between two strings.
+**Strict Mode** (default):
+- Exact prefix matching only
+- Fast and predictable
+- Best for: Clean input, autocomplete
 
 ```javascript
-const { levenshteinDistance } = require('@willwade/noisy-channel-predictor');
-
-const distance = levenshteinDistance('hello', 'helo');
-console.log(distance); // 1
+const predictor = createStrictPredictor({
+  lexicon: words
+});
 ```
 
-#### `similarityScore(str1, str2)`
-
-Calculate similarity score (0-1) between two strings.
+**Error-Tolerant Mode**:
+- Fuzzy matching with edit distance
+- Handles typos and misspellings
+- Best for: Noisy input, AAC, accessibility
 
 ```javascript
-const { similarityScore } = require('@willwade/noisy-channel-predictor');
-
-const score = similarityScore('hello', 'helo');
-console.log(score); // 0.8
+const predictor = createErrorTolerantPredictor({
+  lexicon: words,
+  maxEditDistance: 2,
+  minSimilarity: 0.6
+});
 ```
+
+### Tolerance Levels
+
+Adjust tolerance based on your use case:
+
+```javascript
+// Strict - only minor typos
+const strict = createPredictor({
+  errorTolerant: true,
+  maxEditDistance: 1,
+  minSimilarity: 0.8
+});
+
+// Moderate - common typos (recommended)
+const moderate = createPredictor({
+  errorTolerant: true,
+  maxEditDistance: 2,
+  minSimilarity: 0.6
+});
+
+// Lenient - significant errors
+const lenient = createPredictor({
+  errorTolerant: true,
+  maxEditDistance: 3,
+  minSimilarity: 0.4
+});
+```
+
+### Keyboard-Aware Mode
+
+Enable for better handling of keyboard proximity errors:
+
+```javascript
+const predictor = createErrorTolerantPredictor({
+  keyboardAware: true,  // 'h' and 'j' are adjacent, lower cost
+  keyboardAdjacencyMap: {  // Optional: override QWERTY layout
+    a: ['q', 's', 'z'],
+    b: ['v', 'g', 'h', 'n'],
+    // ... define adjacency for all keys
+  }
+});
+```
+
+**Benefits:**
+- "helo" → "hello" scores better than "helo" → "jello" (even though both are 1 edit)
+- Physical proximity matters: 'h' and 'j' are adjacent, so lower error cost
+
+### Adaptive Mode
+
+Let the model learn from user input in real-time:
+
+```javascript
+const predictor = createPredictor({
+  adaptive: true  // Model updates as user types
+});
+
+// As user types, the model learns their patterns
+predictor.addToContext('hello world');
+// Model now knows "hello" is often followed by "world"
+```
+
+**Use cases:**
+- Personalized prediction
+- Learning user's writing style
+- Adapting to domain-specific vocabulary
 
 ## Examples
 
-The library includes some examples:
+The library includes several examples:
 
 ### Run Examples
 
@@ -812,6 +820,12 @@ npm run example:error-tolerant
 
 # Word completion with lexicon
 npm run example:word-completion
+
+# Training from files
+npm run example:train-from-file
+
+# Bigram tracking
+npm run example:bigram-tracking
 ```
 
 ### Example Files
@@ -819,20 +833,32 @@ npm run example:word-completion
 - `examples/basic-prediction.js` - Character prediction basics
 - `examples/error-tolerant.js` - Handling typos and noisy input
 - `examples/word-completion.js` - Word completion with lexicon
+- `examples/train-from-file.js` - Loading training data from files
+- `examples/bigram-tracking.js` - Next-word prediction with bigrams
 
 ## Use Cases
 
 ### AAC (Augmentative and Alternative Communication)
 
-eg
+Perfect for users with motor impairments who may have difficulty with precise typing:
 
 ```javascript
+const { createErrorTolerantPredictor } = require('@willwade/ppmpredictor');
+
 const predictor = createErrorTolerantPredictor({
   lexicon: aacVocabulary,
-  keyboardAware: true,
-  maxEditDistance: 2,
-  adaptive: true
+  keyboardAware: true,      // Handle proximity errors
+  maxEditDistance: 2,       // Allow typos
+  adaptive: true,           // Learn user's patterns
+  maxPredictions: 5         // Show top 5 suggestions
 });
+
+// Train on user's common phrases
+predictor.train('I want to go to the park. I need help. Thank you.');
+
+// Predict with error tolerance
+const predictions = predictor.predictWordCompletion('hlp');
+// Returns: [{ text: 'help', probability: 0.85 }, ...]
 ```
 
 ### Text Input Enhancement
@@ -849,127 +875,97 @@ const predictor = createPredictor({
 predictor.train(userHistoricalText);
 
 // Provide real-time predictions
-inputField.on('input', (text) => {
-  const predictions = predictor.predictNextCharacter(text);
-  showSuggestions(predictions);
+inputField.addEventListener('input', (e) => {
+  const text = e.target.value;
+  predictor.addToContext(text);
+
+  // Character prediction
+  const charPredictions = predictor.predictNextCharacter();
+
+  // Word completion
+  const lastWord = text.split(/\s+/).pop();
+  const wordPredictions = predictor.predictWordCompletion(lastWord);
+
+  showSuggestions(charPredictions, wordPredictions);
 });
 ```
 
-### Spell Correction
+### Multilingual Communication
 
-Build a spell checker with context awareness (NB: Not really great at this):
+Support users who communicate in multiple languages:
 
 ```javascript
-const corrector = createErrorTolerantPredictor({
-  lexicon: dictionary,
-  maxEditDistance: 2,
-  minSimilarity: 0.6
+const { loadFrequencyList } = require('worldalphabets');
+
+const englishWords = (await loadFrequencyList('en')).tokens.slice(0, 5000);
+const spanishWords = (await loadFrequencyList('es')).tokens.slice(0, 5000);
+
+const predictor = createPredictor({ lexicon: englishWords });
+
+predictor.addTrainingCorpus('spanish', spanishText, {
+  lexicon: spanishWords
 });
 
-function correctWord(word, context) {
-  const suggestions = corrector.predictWordCompletion(word, context);
-  return suggestions[0]?.text || word;
-}
-```
-
-## Configuration Guide
-
-### Strict Mode vs Error-Tolerant Mode
-
-**Strict Mode** (default):
-- Exact prefix matching only
-- Fast and predictable
-- Best for: Clean input, autocomplete
-
-**Error-Tolerant Mode**:
-- Fuzzy matching with edit distance
-- Handles typos and misspellings
-- Best for: Noisy input, AAC, accessibility
-
-### Tolerance Levels
-
-Adjust tolerance based on your use case:
-
-```javascript
-// Strict - only minor typos
-{ maxEditDistance: 1, minSimilarity: 0.8 }
-
-// Moderate - common typos
-{ maxEditDistance: 2, minSimilarity: 0.6 }
-
-// Lenient - significant errors
-{ maxEditDistance: 3, minSimilarity: 0.4 }
-```
-
-### Keyboard-Aware Mode
-
-Enable for better handling of keyboard proximity errors:
-
-```javascript
-const predictor = createErrorTolerantPredictor({
-  keyboardAware: true,  // 'h' and 'j' are adjacent, lower cost
-  keyboardAdjacencyMap: {  // Optional: override QWERTY layout
-    a: ['b'],
-    b: ['a']
-  }
+// User can switch languages
+languageSelector.addEventListener('change', (e) => {
+  predictor.useCorpora([e.target.value]);
 });
 ```
 
-### Adaptive Mode
+### Medical/Professional Terminology
 
-Let the model learn from user input:
+Domain-specific vocabulary for specialized users:
 
 ```javascript
+const medicalWords = [
+  'acetaminophen', 'ibuprofen', 'prescription',
+  'diagnosis', 'symptoms', 'treatment'
+];
+
 const predictor = createPredictor({
-  adaptive: true  // Model updates as user types
+  lexicon: generalWords
 });
+
+predictor.addTrainingCorpus('medical', medicalText, {
+  description: 'Medical terminology',
+  lexicon: medicalWords
+});
+
+// At doctor's office
+predictor.useCorpora(['medical', 'default']);
 ```
 
 ## Performance Considerations
 
 - **Memory**: PPM model size grows with training data
+  - ~1-5 MB for typical AAC vocabulary
+  - Scales linearly with training text size
 - **Speed**: Character prediction is very fast (< 1ms)
 - **Training**: One-time cost, can be done at initialization
 - **Lexicon**: Larger lexicons increase word completion time
+  - 1,000 words: < 5ms
+  - 10,000 words: < 20ms
+  - 50,000 words: < 100ms
 
 ### Optimization Tips
 
-1. **Limit lexicon size** to relevant words
-2. **Use appropriate maxOrder** (5 is usually sufficient)
+1. **Limit lexicon size** to relevant words (5,000-10,000 is usually sufficient)
+2. **Use appropriate maxOrder** (5 is usually sufficient, higher = more memory)
 3. **Train once** at initialization, not per-prediction
 4. **Cache predictions** for repeated queries
-
-## Advanced Usage
-
-### Custom Vocabulary
-
-```javascript
-const { Predictor, Vocabulary } = require('@willwade/noisy-channel-predictor');
-
-const vocab = new Vocabulary();
-// Add custom symbols
-vocab.addSymbol('😊');
-vocab.addSymbol('👍');
-
-// Use with predictor...
-```
-
-### Direct PPM Access
-
-```javascript
-const { PPMLanguageModel, Vocabulary } = require('@willwade/noisy-channel-predictor');
-
-const vocab = new Vocabulary();
-const model = new PPMLanguageModel(vocab, 5);
-
-// Low-level PPM operations...
-```
+5. **Use corpora** to separate vocabularies instead of one huge lexicon
 
 ## Testing
 
 ```bash
+# Run all tests
 npm test
+
+# Run with coverage
+npm run test:coverage
 ```
+
+All 46 tests passing! ✓
 
 ## License
 
@@ -979,21 +975,42 @@ Apache License 2.0 - see [LICENSE](../LICENSE) file for details.
 
 - **PPM Implementation**: Based on Google Research's JavaScript PPM implementation
 - **Original Research**: Cleary & Witten (1984), Dasher project (Cambridge)
+- **WorldAlphabets Integration**: Frequency lists and keyboard layouts for 100+ languages
 - **Author**: Will Wade
 
 ## Contributing
 
 Contributions welcome! Please open an issue or PR on GitHub.
 
+### Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Build
+npm run build
+
+# Run demo locally
+npm run dev
+```
+
 ## Links
 
-- [GitHub Repository](https://github.com/willwade/noisy-channel-correction)
-- [Issue Tracker](https://github.com/willwade/noisy-channel-correction/issues)
-- [NPM Package](https://www.npmjs.com/package/@willwade/noisy-channel-predictor)
+- [GitHub Repository](https://github.com/willwade/ppmpredictor)
+- [Issue Tracker](https://github.com/willwade/ppmpredictor/issues)
+- [NPM Package](https://www.npmjs.com/package/@willwade/ppmpredictor)
+- [Live Demo](https://willwade.github.io/ppmpredictor/demo.html)
 
 ## Related Projects
 
-- [Predictionary](https://github.com/asterics/predictionary) - Dictionary-based prediction library. Really neat from the Asterics project. Just note ours does character level PPM modeling and also we can do things like keyboard-aware fuzzy matching.
-- [Google JSLM](https://github.com/google-research/google-research/tree/master/jslm) - Original JS LM code by Google team
+- [Predictionary](https://github.com/asterics/predictionary) - Dictionary-based prediction library from the Asterics project. Just note ours does character level prediction and with fuzzy matching around keyboard layouts.
+- [Google JSLM](https://github.com/google-research/google-research/tree/master/jslm) - Original JS language model code by Google team
 - [pylm](https://github.com/willwade/pylm) - Python PPM implementation
 - [Dasher](http://www.inference.org.uk/dasher/) - Original AAC application using PPM
+- [WorldAlphabets](https://github.com/willwade/WorldAlphabets) - Frequency lists and keyboard layouts for 100+ languages
+
+
