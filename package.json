@@ -1,6 +1,6 @@
 {
   "name": "@willwade/ppmpredictor",
-  "version": "0.0.0-development",
+  "version": "0.0.9",
   "description": "Word and letter prediction library with configurable error tolerance using PPM (Prediction by Partial Matching)",
   "type": "module",
   "main": "src/index.js",
