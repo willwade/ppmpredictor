@@ -79,7 +79,8 @@ const LANGUAGE_TRAINING_MAP = {
   'sw': 'training_swahili_KE.txt',
   'sv': 'training_swedish_SE.txt',
   'tr': 'training_turkish_TR.txt',
-  'cy': 'training_welsh_GB.txt'
+  'cy': 'training_welsh_GB.txt',
+  'tok': 'training_tokipona_TOK.txt'
 };
 
 /**
@@ -183,7 +184,7 @@ async function loadLanguages() {
     'fr': 'French', 'de': 'German', 'el': 'Greek', 'he': 'Hebrew',
     'hu': 'Hungarian', 'it': 'Italian', 'mn': 'Mongolian', 'fa': 'Persian',
     'pl': 'Polish', 'pt': 'Portuguese', 'ru': 'Russian', 'es': 'Spanish',
-    'sw': 'Swahili', 'sv': 'Swedish', 'tr': 'Turkish', 'cy': 'Welsh'
+    'sw': 'Swahili', 'sv': 'Swedish', 'tr': 'Turkish', 'cy': 'Welsh', 'tok': 'Toki Pona'
   };
   
   for (const code of availableLanguages.sort()) {
