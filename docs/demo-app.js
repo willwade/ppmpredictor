@@ -18,10 +18,10 @@
 // WorldAlphabets provides frequency lists and keyboard layouts for 100+ languages
 // See: https://github.com/AceCentre/WorldAlphabets
 import {
-  getAvailableCodes,      // Get list of available language codes
-  loadFrequencyList,      // Load frequency data for a language (used as lexicon)
-  getAvailableLayouts,    // Get list of available keyboard layouts
-  loadKeyboard            // Load a specific keyboard layout
+  getAvailableCodes, // Get list of available language codes
+  loadFrequencyList, // Load frequency data for a language (used as lexicon)
+  getAvailableLayouts, // Get list of available keyboard layouts
+  loadKeyboard // Load a specific keyboard layout
 } from 'worldalphabets';
 
 // Import PPMPredictor factory function
@@ -36,14 +36,14 @@ const PPMPredictor = { createPredictor };
  * This pattern makes it easy to track and update all application data.
  */
 const state = {
-  predictor: null,              // The PPMPredictor instance
-  currentLanguage: null,        // Currently selected language code (e.g., 'en', 'es')
-  currentKeyboard: null,        // Currently selected keyboard layout ID
-  learnedWords: new Set(),      // Words learned through adaptive mode
-  baseLexicon: [],              // Original lexicon from frequency data
-  trainingCharCount: 0,         // Total characters used for training
-  keyboardLayout: null,         // Current keyboard layout object
-  allKeyboardLayouts: []        // All available keyboard layouts
+  predictor: null, // The PPMPredictor instance
+  currentLanguage: null, // Currently selected language code (e.g., 'en', 'es')
+  currentKeyboard: null, // Currently selected keyboard layout ID
+  learnedWords: new Set(), // Words learned through adaptive mode
+  baseLexicon: [], // Original lexicon from frequency data
+  trainingCharCount: 0, // Total characters used for training
+  keyboardLayout: null, // Current keyboard layout object
+  allKeyboardLayouts: [] // All available keyboard layouts
 };
 
 /**
@@ -173,10 +173,10 @@ async function loadLanguages() {
   const codes = await getAvailableCodes();
   const select = document.getElementById('language-select');
   select.innerHTML = '';
-  
+
   // Filter to languages we have training data for
   const availableLanguages = codes.filter(code => LANGUAGE_TRAINING_MAP[code]);
-  
+
   // Add language options
   const languageNames = {
     'sq': 'Albanian', 'eu': 'Basque', 'bn': 'Bengali', 'cs': 'Czech',
@@ -186,14 +186,14 @@ async function loadLanguages() {
     'pl': 'Polish', 'pt': 'Portuguese', 'ru': 'Russian', 'es': 'Spanish',
     'sw': 'Swahili', 'sv': 'Swedish', 'tr': 'Turkish', 'cy': 'Welsh', 'tok': 'Toki Pona'
   };
-  
+
   for (const code of availableLanguages.sort()) {
     const option = document.createElement('option');
     option.value = code;
     option.textContent = `${languageNames[code] || code} (${code})`;
     select.appendChild(option);
   }
-  
+
   console.log(`📚 Loaded ${availableLanguages.length} languages`);
 }
 
@@ -416,8 +416,8 @@ function initializePredictor() {
   const config = {
     lexicon: fullLexicon,
     errorTolerant: fuzzyEnabled,
-    maxEditDistance: 2,        // Allow up to 2 character edits (insertions, deletions, substitutions)
-    minSimilarity: 0.5,        // Require at least 50% similarity for fuzzy matches
+    maxEditDistance: 2, // Allow up to 2 character edits (insertions, deletions, substitutions)
+    minSimilarity: 0.5, // Require at least 50% similarity for fuzzy matches
     keyboardAware: keyboardAware,
     adaptive: adaptive,
     maxPredictions: 10
@@ -561,12 +561,12 @@ function setupEventListeners() {
   document.getElementById('language-select').addEventListener('change', async (e) => {
     await selectLanguage(e.target.value);
   });
-  
+
   // Keyboard layout selection
   document.getElementById('keyboard-select').addEventListener('change', async (e) => {
     await selectKeyboard(e.target.value);
   });
-  
+
   // Toggle switches
   document.getElementById('fuzzy-toggle').addEventListener('change', () => {
     initializePredictor();
@@ -587,10 +587,10 @@ function setupEventListeners() {
       input.dispatchEvent(new Event('input'));
     }
   });
-  
+
   // Text input
   document.getElementById('text-input').addEventListener('input', handleTextInput);
-  
+
   // Clear learned words
   document.getElementById('clear-learned').addEventListener('click', clearLearnedWords);
 
@@ -720,7 +720,7 @@ window.insertPrediction = function(word) {
   words[words.length - 1] = word;
   input.value = words.join(' ') + ' ';
   input.focus();
-  
+
   // Trigger input event to update predictions
   input.dispatchEvent(new Event('input'));
 };
@@ -803,7 +803,7 @@ async function selectKeyboard(layoutId) {
 
   } catch (error) {
     console.error('Error loading keyboard:', error);
-    updateStatus(`⚠️ Could not load keyboard layout`, 'info');
+    updateStatus('⚠️ Could not load keyboard layout', 'info');
   }
 }
 
@@ -950,12 +950,12 @@ function displayKeyboardLayout(keyboard) {
 // Update learned words display
 function updateLearnedWords() {
   const container = document.getElementById('learned-words');
-  
+
   if (state.learnedWords.size === 0) {
     container.innerHTML = '<em>No learned words yet. Enable adaptive learning and start typing!</em>';
     return;
   }
-  
+
   container.innerHTML = Array.from(state.learnedWords)
     .map(word => `<span class="word-tag">${word}<span class="remove" onclick="removeLearnedWord('${word}')">×</span></span>`)
     .join('');

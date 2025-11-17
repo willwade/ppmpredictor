@@ -18,7 +18,8 @@
     "example:train-file": "node examples/train-from-file.js",
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
-    "dev": "vite",
+    "copy-training": "bash scripts/copy-training-data.sh",
+    "dev": "npm run copy-training && vite",
     "build:demo": "vite build",
     "preview": "vite preview",
     "prepublishOnly": "npm run build"

@@ -14,12 +14,12 @@
 
 /**
  * @fileoverview Example demonstrating multi-corpus training and prediction.
- * 
+ *
  * This example shows how to:
  * - Load multiple domain-specific training corpora
  * - Switch between different corpora based on context
  * - Merge predictions from multiple active corpora
- * 
+ *
  * Use case: AAC user who needs different vocabularies for different contexts
  * (medical appointments, work, personal conversations)
  */
@@ -114,7 +114,7 @@ predictor.resetContext();
 predictor.addToContext('The patient');
 let predictions = predictor.predictNextCharacter();
 console.log('Context: "The patient"');
-console.log('Predictions:', predictions.slice(0, 5).map(p => 
+console.log('Predictions:', predictions.slice(0, 5).map(p =>
   `"${p.text}" (${(p.probability * 100).toFixed(1)}%)`
 ).join(', '));
 
@@ -133,7 +133,7 @@ predictor.resetContext();
 predictor.addToContext('Please review');
 predictions = predictor.predictNextCharacter();
 console.log('Context: "Please review"');
-console.log('Predictions:', predictions.slice(0, 5).map(p => 
+console.log('Predictions:', predictions.slice(0, 5).map(p =>
   `"${p.text}" (${(p.probability * 100).toFixed(1)}%)`
 ).join(', '));
 
@@ -152,7 +152,7 @@ predictor.resetContext();
 predictor.addToContext('Hello, how');
 predictions = predictor.predictNextCharacter();
 console.log('Context: "Hello, how"');
-console.log('Predictions:', predictions.slice(0, 5).map(p => 
+console.log('Predictions:', predictions.slice(0, 5).map(p =>
   `"${p.text}" (${(p.probability * 100).toFixed(1)}%)`
 ).join(', '));
 

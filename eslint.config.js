@@ -73,6 +73,8 @@ export default [
     ignores: [
       'node_modules/**',
       'dist/**',
+      'docs-dist/**',
+      'docs/dist/**',
       'coverage/**',
       '*.min.js'
     ]

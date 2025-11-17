@@ -34,3 +34,6 @@ docs-dist/
 
 # Copied dependencies (no longer needed - Vite bundles from node_modules)
 docs/lib/
+
+# Training data copied for demo (source is in /data/training)
+docs/data/

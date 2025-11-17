@@ -10,19 +10,19 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'docs/index.html'),
-        demo: resolve(__dirname, 'docs/demo.html'),
-      },
-    },
+        demo: resolve(__dirname, 'docs/demo.html')
+      }
+    }
   },
   server: {
     port: 8080,
-    open: '/demo.html',
+    open: '/demo.html'
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      'assert': resolve(__dirname, 'src/polyfills/assert.js'),
-    },
-  },
+      'assert': resolve(__dirname, 'src/polyfills/assert.js')
+    }
+  }
 });
 
