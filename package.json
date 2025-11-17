@@ -41,7 +41,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/willwade/ppmpredictor.git"
+    "url": "git+https://github.com/willwade/ppmpredictor.git"
   },
   "bugs": {
     "url": "https://github.com/willwade/ppmpredictor/issues"
