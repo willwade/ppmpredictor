@@ -342,13 +342,28 @@ test('Regression: top-N predictions remain stable', () => {
   const wordPredictor = createPredictor({ lexicon, errorTolerant: true });
 
   const completions = wordPredictor.predictWordCompletion('hel');
-  const expectedWords = ['hello', 'help', 'held', 'hero', 'helmet'];
+
+  // With frequency-based scoring, words earlier in lexicon should have higher probabilities
+  // The lexicon is assumed to be sorted by frequency (most frequent first)
+  const expectedWords = ['hello', 'help', 'held', 'helmet', 'helium'];
   expectedWords.forEach((word) => {
     const suggestion = completions.find(c => c.text === word);
     assert(suggestion, `Missing completion for '${word}'`);
-    assert(Math.abs(suggestion.probability - 0.010309278350515483) < tolerance,
-      `Probability mismatch for word '${word}'`);
   });
+
+  // Verify that words are ordered by probability (descending)
+  for (let i = 0; i < completions.length - 1; i++) {
+    assert(completions[i].probability >= completions[i + 1].probability,
+      `Predictions not sorted: ${completions[i].text} (${completions[i].probability}) < ${completions[i + 1].text} (${completions[i + 1].probability})`);
+  }
+
+  // Verify that more frequent words (earlier in lexicon) have higher probabilities
+  const helloIdx = lexicon.indexOf('hello');
+  const helmetIdx = lexicon.indexOf('helmet');
+  const helloProb = completions.find(c => c.text === 'hello')?.probability || 0;
+  const helmetProb = completions.find(c => c.text === 'helmet')?.probability || 0;
+  assert(helloProb > helmetProb,
+    `More frequent word 'hello' (pos ${helloIdx}) should have higher probability than 'helmet' (pos ${helmetIdx})`);
 
   const fuzzy = wordPredictor.predictWordCompletion('hez');
   const expectedFuzzy = ['help', 'held', 'hero'];

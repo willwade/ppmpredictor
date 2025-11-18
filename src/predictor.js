@@ -528,7 +528,7 @@ class Predictor {
    * @private
   */
   _predictFromLexicon(partialWord, precedingContext) {
-    const candidates = [];
+    const candidates = new Map(); // Map word -> frequency rank (lower is better)
     const seen = new Set();
 
     // Collect candidates from all active corpora
@@ -538,13 +538,18 @@ class Predictor {
         continue;
       }
 
+      // Get frequency rank from lexicon array (index = rank, lower is more frequent)
+      const lexiconArray = corpus.lexicon || [];
+
       // Use trie for efficient prefix lookup when available
       if (corpus.lexiconTrie) {
         const prefixMatches = corpus.lexiconTrie.collect(partialWord, this.config.maxPredictions * 2);
         for (const word of prefixMatches) {
           if (!seen.has(word)) {
             seen.add(word);
-            candidates.push(word);
+            // Find frequency rank (position in lexicon array)
+            const rank = lexiconArray.indexOf(word);
+            candidates.set(word, rank >= 0 ? rank : lexiconArray.length);
           }
         }
       } else {
@@ -552,7 +557,9 @@ class Predictor {
           if (fuzzy.startsWith(word, partialWord, this.config.caseSensitive)) {
             if (!seen.has(word)) {
               seen.add(word);
-              candidates.push(word);
+              // Find frequency rank (position in lexicon array)
+              const rank = lexiconArray.indexOf(word);
+              candidates.set(word, rank >= 0 ? rank : lexiconArray.length);
             }
           }
         }
@@ -566,14 +573,16 @@ class Predictor {
           const similarity = maxLen === 0 ? 1.0 : 1.0 - (match.distance / maxLen);
           if (similarity >= this.config.minSimilarity && !seen.has(match.term)) {
             seen.add(match.term);
-            candidates.push(match.term);
+            // Find frequency rank (position in lexicon array)
+            const rank = lexiconArray.indexOf(match.term);
+            candidates.set(match.term, rank >= 0 ? rank : lexiconArray.length);
           }
         }
       }
     }
 
-    // Score candidates using PPM model
-    return this._scoreCandidates(candidates, precedingContext);
+    // Score candidates using PPM model + frequency rank
+    return this._scoreCandidatesWithFrequency(candidates, precedingContext);
   }
 
   /**
@@ -706,6 +715,40 @@ class Predictor {
       predictions.push({
         text: candidate,
         probability: score
+      });
+    }
+
+    predictions.sort((a, b) => b.probability - a.probability);
+    return predictions.slice(0, this.config.maxPredictions);
+  }
+
+  /**
+   * Score candidate words using PPM model + frequency rank.
+   * Combines character-level probability with word frequency from lexicon.
+   * @param {Map<string, number>} candidates Map of word -> frequency rank.
+   * @param {string} precedingContext Preceding context.
+   * @return {Array<Prediction>} Scored predictions.
+   * @private
+   */
+  _scoreCandidatesWithFrequency(candidates, precedingContext) {
+    const predictions = [];
+    const maxRank = Math.max(...candidates.values(), 1);
+
+    for (const [word, rank] of candidates.entries()) {
+      // Get PPM character-level score
+      const ppmScore = this._scoreWord(word, precedingContext);
+
+      // Convert rank to frequency score (0-1, higher is better)
+      // More frequent words (lower rank) get higher scores
+      const frequencyScore = 1.0 - (rank / maxRank);
+
+      // Combine scores: 70% frequency, 30% PPM
+      // Frequency is more important for word prediction
+      const combinedScore = (0.7 * frequencyScore) + (0.3 * ppmScore);
+
+      predictions.push({
+        text: word,
+        probability: combinedScore
       });
     }
 
