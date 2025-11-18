@@ -3,64 +3,74 @@ name: Release and Publish
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0, v1.2.3, etc.
+      - "v*" # Trigger on version tags like v1.0.0, v1.2.3, etc.
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Needed to create releases
-      id-token: write  # Needed for NPM provenance
-    
+      contents: write # Needed to create releases
+      id-token: write # Needed for NPM provenance
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for changelog generation
-      
+          fetch-depth: 0 # Fetch all history for changelog generation
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
-      
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run tests
         run: npm test
-      
+
       - name: Build browser bundles
         run: npm run build
-      
+
       - name: Extract version from tag
         id: get_version
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Extracted version: $VERSION"
-      
+
       - name: Update package.json version
         run: |
-          npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
-      
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${{ steps.get_version.outputs.VERSION }}
+          echo "Current package.json version: $CURRENT_VERSION"
+          echo "Tag version: $TAG_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$TAG_VERSION" ]; then
+            echo "Updating package.json version to $TAG_VERSION"
+            npm version $TAG_VERSION --no-git-tag-version
+          else
+            echo "Version already matches, skipping npm version command"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ steps.get_version.outputs.VERSION }}
           body: |
             ## Release ${{ steps.get_version.outputs.VERSION }}
-            
+
             ### Installation
             ```bash
             npm install @willwade/ppmpredictor@${{ steps.get_version.outputs.VERSION }}
             ```
-            
+
             ### Browser CDN
             ```html
             <script src="https://unpkg.com/@willwade/ppmpredictor@${{ steps.get_version.outputs.VERSION }}/dist/ppmpredictor.min.js"></script>
             ```
-            
+
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           files: |
             dist/*.js
@@ -69,15 +79,14 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Publish to NPM
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
+
       - name: Notify success
         run: |
           echo "✅ Successfully published @willwade/ppmpredictor@${{ steps.get_version.outputs.VERSION }}"
           echo "📦 NPM: https://www.npmjs.com/package/@willwade/ppmpredictor"
           echo "🐙 GitHub: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.get_version.outputs.VERSION }}"
-
