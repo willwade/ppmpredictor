@@ -19,6 +19,7 @@
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
     "copy-training": "bash scripts/copy-training-data.sh",
+    "parity:ppm": "node scripts/ppm-parity.js",
     "dev": "npm run copy-training && vite",
     "build:demo": "vite build",
     "preview": "vite preview",

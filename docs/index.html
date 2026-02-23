@@ -250,7 +250,8 @@
     console.log('\n1. Setting up character prediction...');
     const charPredictor = PPMPredictor.createPredictor({
       maxOrder: 5,
-      maxPredictions: 8
+      maxPredictions: 8,
+      ppmUseExclusion: true
     });
 
     // Train with sample text
@@ -303,7 +304,8 @@
     
     const wordPredictor = PPMPredictor.createPredictor({
       lexicon: wordLexicon,
-      maxPredictions: 5
+      maxPredictions: 5,
+      ppmUseExclusion: true
     });
     console.log('✅ Word predictor created with', wordLexicon.length, 'words');
 
@@ -335,7 +337,8 @@
       lexicon: wordLexicon,
       maxEditDistance: 2,
       minSimilarity: 0.5,
-      maxPredictions: 5
+      maxPredictions: 5,
+      ppmUseExclusion: true
     });
     console.log('✅ Error-tolerant predictor created');
 
@@ -367,4 +370,3 @@
   </script>
 </body>
 </html>
-

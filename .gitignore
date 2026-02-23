@@ -28,6 +28,7 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
+temp/
 
 # Demo build output (Vite)
 docs-dist/

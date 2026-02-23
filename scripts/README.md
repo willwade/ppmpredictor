@@ -34,3 +34,34 @@ The GitHub Actions workflow (`.github/workflows/deploy-pages.yml`) copies traini
 
 This ensures the deployed demo on GitHub Pages has access to the training files.
 
+## ppm-parity.js
+
+Generates deterministic PPM probability fingerprints from the JS model using the
+Dasher rewrite corpora in https://github.com/PapeCoding/Dasher-LM-Rewrite .
+
+### Usage
+
+```bash
+# Run with explicit external corpora paths
+npm run parity:ppm -- \
+  --train /path/to/Dasher-LM-Rewrite/trainText.txt \
+  --test /path/to/Dasher-LM-Rewrite/testText.txt
+
+# Save a baseline reference
+npm run parity:ppm -- \
+  --train /path/to/Dasher-LM-Rewrite/trainText.txt \
+  --test /path/to/Dasher-LM-Rewrite/testText.txt \
+  --write-reference temp/js-parity-reference.json
+
+# Compare against a baseline (non-zero exit on mismatch)
+npm run parity:ppm -- \
+  --train /path/to/Dasher-LM-Rewrite/trainText.txt \
+  --test /path/to/Dasher-LM-Rewrite/testText.txt \
+  --reference temp/js-parity-reference.json
+```
+
+### Notes
+
+- Defaults mirror Dasher-style parameters (`alpha=0.49`, `beta=0.77`, exclusion on).
+- Supports memory cap testing via `--max-nodes`.
+- The Dasher rewrite repository is intentionally external; do not commit it into this repo.

@@ -406,6 +406,11 @@ function initializePredictor() {
   const fuzzyEnabled = document.getElementById('fuzzy-toggle').checked;
   const keyboardAware = document.getElementById('keyboard-aware-toggle').checked;
   const adaptive = document.getElementById('adaptive-toggle').checked;
+  const ppmUseExclusion = document.getElementById('ppm-use-exclusion-toggle').checked;
+  const ppmUpdateExclusion = document.getElementById('ppm-update-exclusion-toggle').checked;
+  const ppmAlpha = Number.parseFloat(document.getElementById('ppm-alpha-input').value || '0.49');
+  const ppmBeta = Number.parseFloat(document.getElementById('ppm-beta-input').value || '0.77');
+  const ppmMaxNodes = Number.parseInt(document.getElementById('ppm-max-nodes-input').value || '0', 10);
 
   // Combine base lexicon (from frequency data) with learned words (from adaptive mode)
   // This allows the predictor to suggest both common words and user-specific vocabulary
@@ -420,7 +425,12 @@ function initializePredictor() {
     minSimilarity: 0.5, // Require at least 50% similarity for fuzzy matches
     keyboardAware: keyboardAware,
     adaptive: adaptive,
-    maxPredictions: 10
+    maxPredictions: 10,
+    ppmAlpha: Number.isFinite(ppmAlpha) ? ppmAlpha : 0.49,
+    ppmBeta: Number.isFinite(ppmBeta) ? ppmBeta : 0.77,
+    ppmUseExclusion: ppmUseExclusion,
+    ppmUpdateExclusion: ppmUpdateExclusion,
+    ppmMaxNodes: Number.isInteger(ppmMaxNodes) && ppmMaxNodes >= 0 ? ppmMaxNodes : 0
   };
 
   // Add custom keyboard adjacency map if keyboard-aware mode is enabled
@@ -577,6 +587,26 @@ function setupEventListeners() {
   });
 
   document.getElementById('adaptive-toggle').addEventListener('change', () => {
+    initializePredictor();
+  });
+
+  document.getElementById('ppm-use-exclusion-toggle').addEventListener('change', () => {
+    initializePredictor();
+  });
+
+  document.getElementById('ppm-update-exclusion-toggle').addEventListener('change', () => {
+    initializePredictor();
+  });
+
+  document.getElementById('ppm-alpha-input').addEventListener('change', () => {
+    initializePredictor();
+  });
+
+  document.getElementById('ppm-beta-input').addEventListener('change', () => {
+    initializePredictor();
+  });
+
+  document.getElementById('ppm-max-nodes-input').addEventListener('change', () => {
     initializePredictor();
   });
 
@@ -987,8 +1017,27 @@ function updateStats() {
   if (state.predictor) {
     const bigramStats = state.predictor.getBigramStats();
     document.getElementById('stat-bigrams').textContent = bigramStats.uniqueBigrams.toLocaleString();
+
+    // PPM runtime stats (across active corpora)
+    const ppmStats = state.predictor.getPPMStats();
+    const activeCorpora = state.predictor.getCorpora(true);
+    let totalNodes = 0;
+    let totalSkipped = 0;
+
+    for (const corpusKey of activeCorpora) {
+      const corpusStats = ppmStats[corpusKey];
+      if (corpusStats) {
+        totalNodes += corpusStats.numNodes || 0;
+        totalSkipped += corpusStats.skippedNodeAdds || 0;
+      }
+    }
+
+    document.getElementById('stat-ppm-nodes').textContent = totalNodes.toLocaleString();
+    document.getElementById('stat-ppm-skipped').textContent = totalSkipped.toLocaleString();
   } else {
     document.getElementById('stat-bigrams').textContent = '0';
+    document.getElementById('stat-ppm-nodes').textContent = '0';
+    document.getElementById('stat-ppm-skipped').textContent = '0';
   }
 }
 
@@ -1054,4 +1103,3 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-

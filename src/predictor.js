@@ -37,6 +37,11 @@ import { PrefixTrie } from './utils/prefix-trie.js';
  * @property {number} maxPredictions - Maximum number of predictions to return (default: 10)
  * @property {boolean} adaptive - Update model as text is entered (default: false)
  * @property {Array<string>} lexicon - Optional word list for word prediction
+ * @property {number} ppmAlpha - PPM smoothing alpha (default: 0.49)
+ * @property {number} ppmBeta - PPM smoothing beta (default: 0.77)
+ * @property {boolean} ppmUseExclusion - Enable PPM exclusion at inference (default: true)
+ * @property {boolean} ppmUpdateExclusion - Enable PPM single-count updates (default: true)
+ * @property {number} ppmMaxNodes - Maximum trie nodes per corpus model (0 = unlimited)
  */
 
 /**
@@ -68,7 +73,13 @@ class Predictor {
       caseSensitive: config.caseSensitive !== undefined ? config.caseSensitive : false,
       maxPredictions: config.maxPredictions || 10,
       adaptive: config.adaptive !== undefined ? config.adaptive : false,
-      lexicon: config.lexicon || []
+      lexicon: config.lexicon || [],
+      ppmAlpha: config.ppmAlpha !== undefined ? config.ppmAlpha : 0.49,
+      ppmBeta: config.ppmBeta !== undefined ? config.ppmBeta : 0.77,
+      ppmUseExclusion: config.ppmUseExclusion !== undefined ? config.ppmUseExclusion : true,
+      ppmUpdateExclusion: config.ppmUpdateExclusion !== undefined ?
+        config.ppmUpdateExclusion : true,
+      ppmMaxNodes: config.ppmMaxNodes !== undefined ? config.ppmMaxNodes : 0
     };
 
     // Create vocabulary (shared across all corpora)
@@ -88,7 +99,11 @@ class Predictor {
     this._corpora = {
       // Default corpus (backward compatibility)
       'default': {
-        model: new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder),
+        model: new ppm.PPMLanguageModel(
+          this.vocab,
+          this.config.maxOrder,
+          this._getPPMOptions()
+        ),
         enabled: true,
         description: 'Default training corpus',
         lexicon: this.config.lexicon || [],
@@ -119,6 +134,9 @@ class Predictor {
 
     // Build lexicon structures for default corpus
     this._buildCorpusLexicon('default');
+
+    // Apply PPM settings to all corpora.
+    this._applyPPMConfigToModels();
   }
 
   /**
@@ -187,7 +205,11 @@ class Predictor {
     }
 
     // Create new PPM model for this corpus
-    const corpusModel = new ppm.PPMLanguageModel(this.vocab, this.config.maxOrder);
+    const corpusModel = new ppm.PPMLanguageModel(
+      this.vocab,
+      this.config.maxOrder,
+      this._getPPMOptions()
+    );
 
     // Train the model on the provided text
     const chars = tokenizer.toCharArray(text);
@@ -991,6 +1013,22 @@ class Predictor {
   }
 
   /**
+   * Get PPM model statistics for each corpus.
+   * Useful for observing memory usage when max node limits are set.
+   *
+   * @return {Object<string, Object>} Map of corpus key to stats.
+   */
+  getPPMStats() {
+    const stats = {};
+    for (const [key, corpus] of Object.entries(this._corpora)) {
+      if (corpus && corpus.model && typeof corpus.model.getStats === 'function') {
+        stats[key] = corpus.model.getStats();
+      }
+    }
+    return stats;
+  }
+
+  /**
    * Get configuration.
    * @return {PredictorConfig} Current configuration.
    */
@@ -1004,6 +1042,14 @@ class Predictor {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
+
+    if (newConfig.ppmAlpha !== undefined ||
+      newConfig.ppmBeta !== undefined ||
+      newConfig.ppmUseExclusion !== undefined ||
+      newConfig.ppmUpdateExclusion !== undefined ||
+      newConfig.ppmMaxNodes !== undefined) {
+      this._applyPPMConfigToModels();
+    }
 
     // Rebuild lexicon structures if relevant settings changed
     if (newConfig.lexicon ||
@@ -1076,6 +1122,34 @@ class Predictor {
 
     // Also update keyboard adjacency (shared across all corpora)
     this.keyboardAdjacency = this._resolveAdjacencyMap();
+  }
+
+  /**
+   * Returns PPM parameter options from predictor config.
+   * @return {Object} PPM options object.
+   * @private
+   */
+  _getPPMOptions() {
+    return {
+      alpha: this.config.ppmAlpha,
+      beta: this.config.ppmBeta,
+      useExclusion: this.config.ppmUseExclusion,
+      updateExclusion: this.config.ppmUpdateExclusion,
+      maxNodes: this.config.ppmMaxNodes
+    };
+  }
+
+  /**
+   * Applies current PPM settings to all loaded corpus models.
+   * @private
+   */
+  _applyPPMConfigToModels() {
+    const options = this._getPPMOptions();
+    for (const corpus of Object.values(this._corpora)) {
+      if (corpus && corpus.model && typeof corpus.model.setParameters === 'function') {
+        corpus.model.setParameters(options);
+      }
+    }
   }
 
   /**

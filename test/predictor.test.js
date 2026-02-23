@@ -21,6 +21,8 @@ import {
   createPredictor,
   createStrictPredictor,
   createErrorTolerantPredictor,
+  PPMLanguageModel,
+  Vocabulary,
   levenshteinDistance,
   similarityScore
 } from '../src/index.js';
@@ -322,11 +324,11 @@ test('Regression: top-N predictions remain stable', () => {
 
   const charPreds = predictor.predictNextCharacter().slice(0, 5);
   const expectedChars = [
-    { text: 'q', probability: 0.44819389715754004 },
-    { text: 'l', probability: 0.16699089362953626 },
-    { text: 't', probability: 0.05237716056772911 },
-    { text: 'h', probability: 0.047360509629352156 },
-    { text: ' ', probability: 0.03974712384208602 }
+    { text: 'q', probability: 0.35243553008595985 },
+    { text: 'h', probability: 0.08978673487048328 },
+    { text: 't', probability: 0.08077522592574155 },
+    { text: ' ', probability: 0.06836381150293798 },
+    { text: 'l', probability: 0.0659025787965616 }
   ];
 
   const tolerance = 1e-9;
@@ -777,6 +779,118 @@ test('Switch between corpus lexicons', () => {
   texts = predictions.map(p => p.text);
   assert(texts.includes('cherry'), 'Should have fruit words');
   assert(!texts.includes('cat'), 'Should not have animal words');
+});
+
+test('PPM updateExclusion=false propagates counts to shorter contexts', () => {
+  const vocabulary = new Vocabulary();
+  const a = vocabulary.addSymbol('a');
+  vocabulary.addSymbol('b');
+
+  const singleCountModel = new PPMLanguageModel(vocabulary, 3, {
+    updateExclusion: true
+  });
+  const propagatedModel = new PPMLanguageModel(vocabulary, 3, {
+    updateExclusion: false
+  });
+
+  const contextSingle = singleCountModel.createContext();
+  const contextPropagated = propagatedModel.createContext();
+
+  for (let i = 0; i < 10; i++) {
+    singleCountModel.addSymbolAndUpdate(contextSingle, a);
+    propagatedModel.addSymbolAndUpdate(contextPropagated, a);
+  }
+
+  const singleRootChild = singleCountModel.root_.findChildWithSymbol(a);
+  const propagatedRootChild = propagatedModel.root_.findChildWithSymbol(a);
+
+  assert(singleRootChild, 'Expected root child for symbol a');
+  assert(propagatedRootChild, 'Expected root child for symbol a');
+  assert(propagatedRootChild.count_ > singleRootChild.count_,
+    'Expected propagated mode to accumulate larger lower-order counts');
+});
+
+test('Predictor updates PPM settings across all corpus models', () => {
+  const predictor = createPredictor({
+    ppmAlpha: 0.49,
+    ppmBeta: 0.77,
+    ppmUseExclusion: false,
+    ppmUpdateExclusion: true
+  });
+  predictor.addTrainingCorpus('medical', 'medical terms and notes');
+
+  predictor.updateConfig({
+    ppmAlpha: 0.25,
+    ppmBeta: 0.5,
+    ppmUseExclusion: true,
+    ppmUpdateExclusion: false
+  });
+
+  for (const corpus of Object.values(predictor._corpora)) {
+    assert.strictEqual(corpus.model.alpha_, 0.25);
+    assert.strictEqual(corpus.model.beta_, 0.5);
+    assert.strictEqual(corpus.model.useExclusion_, true);
+    assert.strictEqual(corpus.model.updateExclusion_, false);
+  }
+});
+
+test('PPM smoothing parameters can change predicted probabilities', () => {
+  const vocabulary = new Vocabulary();
+  const a = vocabulary.addSymbol('a');
+  const b = vocabulary.addSymbol('b');
+  const sample = 'aaaaabaaaaab';
+
+  const lowBetaModel = new PPMLanguageModel(vocabulary, 2, {
+    alpha: 0.49,
+    beta: 0.0,
+    useExclusion: false
+  });
+  const highBetaModel = new PPMLanguageModel(vocabulary, 2, {
+    alpha: 0.49,
+    beta: 0.95,
+    useExclusion: false
+  });
+
+  const lowBetaContext = lowBetaModel.createContext();
+  const highBetaContext = highBetaModel.createContext();
+
+  for (const ch of sample) {
+    const symbol = ch === 'a' ? a : b;
+    lowBetaModel.addSymbolAndUpdate(lowBetaContext, symbol);
+    highBetaModel.addSymbolAndUpdate(highBetaContext, symbol);
+  }
+
+  const lowQuery = lowBetaModel.createContext();
+  const highQuery = highBetaModel.createContext();
+  lowBetaModel.addSymbolToContext(lowQuery, a);
+  highBetaModel.addSymbolToContext(highQuery, a);
+
+  const lowProbB = lowBetaModel.getProbs(lowQuery)[b];
+  const highProbB = highBetaModel.getProbs(highQuery)[b];
+  assert(Math.abs(lowProbB - highProbB) > 1e-6,
+    'Expected different beta values to change the probability distribution');
+});
+
+test('PPM maxNodes limits trie growth', () => {
+  const vocabulary = new Vocabulary();
+  const text = 'abcdefghijklmnopqrstuvwxyz'.repeat(10);
+  for (const ch of text) {
+    vocabulary.addSymbol(ch);
+  }
+
+  const model = new PPMLanguageModel(vocabulary, 5, {
+    maxNodes: 40,
+    useExclusion: true,
+    updateExclusion: true
+  });
+  const context = model.createContext();
+  for (const ch of text) {
+    model.addSymbolAndUpdate(context, vocabulary.getSymbol(ch));
+  }
+
+  const stats = model.getStats();
+  assert(stats.numNodes <= 40, `Expected numNodes <= 40, got ${stats.numNodes}`);
+  assert(stats.skippedNodeAdds > 0, 'Expected skipped node additions when capped');
 });
 
 console.log();

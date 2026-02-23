@@ -39,6 +39,11 @@ import wordTokenizer from './utils/word-tokenizer.js';
  * @param {number} [config.maxPredictions=10] - Maximum number of predictions
  * @param {boolean} [config.adaptive=false] - Update model as text is entered
  * @param {Array<string>} [config.lexicon=[]] - Optional word list for word prediction
+ * @param {number} [config.ppmAlpha=0.49] - PPM smoothing alpha
+ * @param {number} [config.ppmBeta=0.77] - PPM smoothing beta
+ * @param {boolean} [config.ppmUseExclusion=true] - Enable inference-time exclusion
+ * @param {boolean} [config.ppmUpdateExclusion=true] - Enable single-count updates
+ * @param {number} [config.ppmMaxNodes=0] - Maximum trie nodes per model (0 = unlimited)
  * @return {Predictor} Predictor instance
  *
  * @example

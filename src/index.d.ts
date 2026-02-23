@@ -26,6 +26,32 @@ export interface PredictorConfig {
   adaptive?: boolean;
   /** Optional word list for word prediction */
   lexicon?: string[];
+  /** PPM smoothing alpha (default: 0.49) */
+  ppmAlpha?: number;
+  /** PPM smoothing beta (default: 0.77) */
+  ppmBeta?: number;
+  /** Enable inference-time exclusion in PPM (default: true) */
+  ppmUseExclusion?: boolean;
+  /** Enable single-count updates in PPM (default: true) */
+  ppmUpdateExclusion?: boolean;
+  /** Maximum trie nodes per corpus model (0 = unlimited) */
+  ppmMaxNodes?: number;
+}
+
+/**
+ * PPM parameter options.
+ */
+export interface PPMOptions {
+  /** Smoothing alpha (default: 0.49) */
+  alpha?: number;
+  /** Smoothing beta (default: 0.77) */
+  beta?: number;
+  /** Enable exclusion at inference time */
+  useExclusion?: boolean;
+  /** Enable "single counting" updates */
+  updateExclusion?: boolean;
+  /** Maximum trie nodes for the model (0 = unlimited) */
+  maxNodes?: number;
 }
 
 /**
@@ -194,6 +220,11 @@ export class Predictor {
   getBigramStats(): BigramStats;
 
   /**
+   * Get PPM stats per corpus (node counts and budget counters).
+   */
+  getPPMStats(): Record<string, { numNodes: number; maxNodes: number; skippedNodeAdds: number }>;
+
+  /**
    * Get current configuration.
    * @returns Current configuration
    */
@@ -210,7 +241,9 @@ export class Predictor {
  * PPM Language Model class (for advanced usage).
  */
 export class PPMLanguageModel {
-  constructor(vocab: Vocabulary, maxOrder: number);
+  constructor(vocab: Vocabulary, maxOrder: number, options?: PPMOptions);
+  setParameters(options: PPMOptions): void;
+  getStats(): { numNodes: number; maxNodes: number; skippedNodeAdds: number };
   createContext(): any;
   cloneContext(context: any): any;
   addSymbolToContext(context: any, symbol: number): void;
